@@ -105,6 +105,7 @@ user.rt<-read.csv("C:/Users/John/Documents/R/russian_trolls/users.csv")
 
 #renameing Features
 created_str <-as.Date(rt$created_str)
+text<- as.character(rt$text)
 
 str(rt)
 ```
@@ -220,6 +221,9 @@ text_dtm <- DocumentTermMatrix(text_corpus, control = list(
  stopwords=TRUE,
 removePunctuation= TRUE,
 stemming =TRUE )) 
+
+#removeURL <- function(x) gsub("http[[:alnum:]]*", "", x)
+#text_dtm<- tm_map(text_dtm, removeURL)
 ```
 
 ``` r
