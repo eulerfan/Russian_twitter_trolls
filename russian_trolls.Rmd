@@ -21,7 +21,9 @@ Acknowledgements
 If you publish using the data, please credit NBC News and include a link to this page. Send questions to ben.popken@nbcuni.com. 
 
 ```{r}
-
+ library(e1071)
+library(SnowballC)
+library(gmodels)
 library(rtweet)
 library(twitteR)
 library(tidytext)
@@ -31,44 +33,129 @@ library(wordcloud)
 library(tidyr)
 library(tm)
 
+#nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
+#rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
 
-rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
+#set.seed(33)
+#rt <- data.frame(sample_n(rt,6000,replace=FALSE))
+#nt<-data.frame(sample_n(nt,6000,replace = FALSE))
 
-user.rt<-read.csv("C:/Users/John/Documents/R/russian_trolls/users.csv")
+#save(rt,file = "savedrt.RData")
+#save(nt,file= "savednt.RData")
+
+
+```
+
+
+
+```{r}
+
+
+load("savedrt.RData")
+load("savednt.RData")
 
 #renameing Features
 created_str <-as.Date(rt$created_str)
 text<- as.character(rt$text)
+colnames(nt)[6]<- as.character(c("text"))
+colnames(nt)[3]<- "created_str"
 
-str(rt)
+#created_str<-as.Date(nt$created_str)
 
-summary(rt)
+#adding a column Russian tweets
+rt$r_nr<-"r"
+
+#adding column to non_russian tweets
+nt$r_nr<-"nr"
 
 
 ```
 
 ```{r}
 
-text_corpus<- VCorpus(VectorSource(rt$text))
+#combining data sets
+
+
+tot_tweets<- full_join(nt,rt)
+tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
+
+#change character to factor
+tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=TRUE)
+
+  
+text_corpus<- VCorpus(VectorSource(tot_tweets$text))
 print(text_corpus)
 
-text_dtm <- DocumentTermMatrix(text_corpus, control = list(
- tolower = TRUE,
- removeNumbers= TRUE,
- stopwords=TRUE,
-removePunctuation= TRUE,
-stemming =TRUE )) 
+#cleaning tweets 
+text_corpus_clean<-tm_map(text_corpus,content_transformer(tolower))
 
-#removeURL <- function(x) gsub("http[[:alnum:]]*", "", x)
-#text_dtm<- tm_map(text_dtm, removeURL)
+text_corpus_clean<-tm_map(text_corpus_clean,removeNumbers)
+
+text_corpus_clean<-tm_map(text_corpus_clean,removeWords,stopwords())
+
+text_corpus_clean<-tm_map(text_corpus_clean,removePunctuation)
+
+                                                    text_corpus_clean<-tm_map(text_corpus_clean,stemDocument)
+                                                                                                         
+text_corpus_clean<-tm_map(text_corpus_clean,stripWhitespace)
+
+text_dtm <-DocumentTermMatrix(text_corpus_clean,control =
+                                list(wordLengths=c(0,Inf)))
 
 
 ```
 ```{r}
-text_dtm_train<- text_dtm[1:152600,]
-text_dtm_test<- text_dtm[152601:203482,]
+text_dtm_train<- text_dtm[1:10000,]
+text_dtm_test<- text_dtm[10000:12000,]
 
 
+text_train_labels<- tot_tweets[1:10000,]$r_nr
+text_test_labels<- tot_tweets[10000:12000,]$r_nr
+
+
+```
+```{r}
+#Overall word graph
+wordcloud(text_corpus_clean, min.freq = 100,scale=c(2,.5),random.order = FALSE)
+
+#Russian troll graph
+rus<-subset(tot_tweets,r_nr=="r")
+norus<-subset(tot_tweets,r_nr=="nr")
+
+wordcloud(rus$text, max.words = 40,scale = c(3,.5))
+
+#no russian trolls graph
+wordcloud(norus$text, max.words = 40, scale = c(3,.5))
+```
+```{r}
+#number of frequent terms
+tweet_freq_words <- findFreqTerms(text_dtm_train, 10)
+ 
+ str(tweet_freq_words)
+ 
+#DTM
+ 
+tweet_dtm_freq_train<- text_dtm_train[ , tweet_freq_words]
+tweet_dtm_freq_test <- text_dtm_test[ , tweet_freq_words]
+
+ convert_counts <- function(x) {
+ x <- ifelse(x > 0, "Yes", "No")
+ }
+
+tweet_train <- apply(tweet_dtm_freq_train, MARGIN = 2,
+ convert_counts)
+tweet_test <- apply(tweet_dtm_freq_test, MARGIN = 2,
+ convert_counts)
+  
+tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
+```
+```{r}
+ tweet_test_pred <- predict(tweet_classifier, tweet_test)
+
+
+ CrossTable(tweet_test_pred, text_test_labels,
+ prop.chisq = FALSE, prop.t = FALSE,
+ dnn = c('predicted', 'actual'))
 ```
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
