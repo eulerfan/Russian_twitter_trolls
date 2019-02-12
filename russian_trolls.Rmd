@@ -51,8 +51,9 @@ library(tm)
 ```{r}
 
 
-load("savedrt.RData")
 load("savednt.RData")
+
+load("savedrt.RData")
 
 #renameing Features
 created_str <-as.Date(rt$created_str)
@@ -61,6 +62,7 @@ colnames(nt)[6]<- as.character(c("text"))
 colnames(nt)[3]<- "created_str"
 
 #created_str<-as.Date(nt$created_str)
+
 
 #adding a column Russian tweets
 rt$r_nr<-"r"
@@ -129,7 +131,7 @@ wordcloud(norus$text, max.words = 40, scale = c(3,.5))
 ```
 ```{r}
 #number of frequent terms
-tweet_freq_words <- findFreqTerms(text_dtm_train, 10)
+tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
  
  str(tweet_freq_words)
  

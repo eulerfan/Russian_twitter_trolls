@@ -16,6 +16,24 @@ Following the links will lead to a suspended page on Twitter. But some copies of
 Acknowledgements If you publish using the data, please credit NBC News and include a link to this page. Send questions to <ben.popken@nbcuni.com>.
 
 ``` r
+ library(e1071)
+```
+
+    ## Warning: package 'e1071' was built under R version 3.4.4
+
+``` r
+library(SnowballC)
+```
+
+    ## Warning: package 'SnowballC' was built under R version 3.4.4
+
+``` r
+library(gmodels)
+```
+
+    ## Warning: package 'gmodels' was built under R version 3.4.4
+
+``` r
 library(rtweet)
 ```
 
@@ -99,137 +117,196 @@ library(tm)
     ##     annotate
 
 ``` r
-rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
+#nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
+#rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
 
-user.rt<-read.csv("C:/Users/John/Documents/R/russian_trolls/users.csv")
+#set.seed(33)
+#rt <- data.frame(sample_n(rt,6000,replace=FALSE))
+#nt<-data.frame(sample_n(nt,6000,replace = FALSE))
+
+#save(rt,file = "savedrt.RData")
+#save(nt,file= "savednt.RData")
+```
+
+``` r
+load("savednt.RData")
+
+load("savedrt.RData")
 
 #renameing Features
 created_str <-as.Date(rt$created_str)
 text<- as.character(rt$text)
+colnames(nt)[6]<- as.character(c("text"))
+colnames(nt)[3]<- "created_str"
 
-str(rt)
+#created_str<-as.Date(nt$created_str)
+
+
+#adding a column Russian tweets
+rt$r_nr<-"r"
+
+#adding column to non_russian tweets
+nt$r_nr<-"nr"
 ```
 
-    ## 'data.frame':    203482 obs. of  16 variables:
-    ##  $ user_id              : num  1.87e+09 2.57e+09 1.71e+09 2.58e+09 1.77e+09 ...
-    ##  $ user_key             : Factor w/ 454 levels "_billy_moyer_",..: 374 117 97 348 294 151 38 224 22 168 ...
-    ##  $ created_at           : num  1.46e+12 1.48e+12 1.49e+12 1.48e+12 1.50e+12 ...
-    ##  $ created_str          : Factor w/ 198422 levels "","2014-07-14 18:04:55",..: 32435 91101 176773 145243 197791 104222 181292 147779 106367 31601 ...
-    ##  $ retweet_count        : int  NA 0 NA NA NA NA NA NA 0 NA ...
-    ##  $ retweeted            : Factor w/ 2 levels "","false": 1 2 1 1 1 1 1 1 2 1 ...
-    ##  $ favorite_count       : int  NA 0 NA NA NA NA NA NA 0 NA ...
-    ##  $ text                 : Factor w/ 174986 levels "","'#SickHillary refuses to answer question about concussion, walks away. #LaueringTheBar\nhttps://t.co/7DK8P8yiC0"| __truncated__,..: 5381 21469 109742 101811 139848 14826 112855 42146 49739 39072 ...
-    ##  $ tweet_id             : num  7.12e+17 7.86e+17 8.34e+17 8.13e+17 8.94e+17 ...
-    ##  $ source               : Factor w/ 20 levels "","<a href=\"http://bufferapp.com\" rel=\"nofollow\">Buffer</a>",..: 1 15 1 1 1 1 1 1 11 1 ...
-    ##  $ hashtags             : Factor w/ 18343 levels "[\"_Malikalovess\"]",..: 7768 18343 18343 2484 18343 18343 18343 18343 18343 1626 ...
-    ##  $ expanded_urls        : Factor w/ 22215 levels "[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"]",..: 22215 5456 22215 22215 22215 22215 22215 22215 11374 22215 ...
-    ##  $ posted               : Factor w/ 1 level "POSTED": 1 1 1 1 1 1 1 1 1 1 ...
-    ##  $ mentions             : Factor w/ 16683 levels "[\"___lorraine__\"]",..: 16683 16683 16683 16683 16683 16683 16683 16683 881 16683 ...
-    ##  $ retweeted_status_id  : num  NA NA NA NA NA ...
-    ##  $ in_reply_to_status_id: num  NA NA NA NA NA NA NA NA NA NA ...
-
 ``` r
-summary(rt)
+#combining data sets
+
+
+tot_tweets<- full_join(nt,rt)
 ```
 
-    ##     user_id                    user_key        created_at       
-    ##  Min.   :1.871e+07   ameliebaldwin :  9269   Min.   :1.405e+12  
-    ##  1st Qu.:1.671e+09   hyddrox       :  6813   1st Qu.:1.471e+12  
-    ##  Median :1.857e+09   giselleevns   :  6652   Median :1.477e+12  
-    ##  Mean   :1.404e+16   patriotblake  :  4140   Mean   :1.473e+12  
-    ##  3rd Qu.:2.590e+09   thefoundingson:  3663   3rd Qu.:1.483e+12  
-    ##  Max.   :7.893e+17   melvinsroberts:  3346   Max.   :1.506e+12  
-    ##  NA's   :8065        (Other)       :169599   NA's   :21         
-    ##               created_str     retweet_count      retweeted     
-    ##                     :    21   Min.   :    0.00        :145399  
-    ##  2016-02-03 12:42:11:     6   1st Qu.:    0.00   false: 58083  
-    ##  2016-02-05 12:08:51:     6   Median :    0.00                 
-    ##  2016-02-11 07:39:05:     6   Mean   :   39.64                 
-    ##  2016-02-11 07:59:33:     6   3rd Qu.:    0.00                 
-    ##  2016-02-14 18:59:29:     6   Max.   :20494.00                 
-    ##  (Other)            :203431   NA's   :145399                   
-    ##  favorite_count   
-    ##  Min.   :    0.0  
-    ##  1st Qu.:    0.0  
-    ##  Median :    0.0  
-    ##  Mean   :   35.5  
-    ##  3rd Qu.:    0.0  
-    ##  Max.   :26655.0  
-    ##  NA's   :145399   
-    ##                                                                                                                                  text       
-    ##  RT @MarkAlmost: MT @jstines3: Dear LORD, please bless                                                                             :    30  
-    ##                                                                                                                                    :    21  
-    ##  RT @AtomicElbow1: Trump twitter suspended #2016ElectionIn3Words                                                                   :    17  
-    ##  RT @lgmaterna: Anyone voting Clinton #LostIn3Words                                                                                :    16  
-    ##  RT @The_Anti_Fox: 7yrs                                                                                                            :    16  
-    ##  RT @AndyHashtagger: #TrumpsFavoriteHeadline An army of Trump clones is ready to fight and serve its master https://t.co/HQgXvUtVsQ:    15  
-    ##  (Other)                                                                                                                           :203367  
-    ##     tweet_id        
-    ##  Min.   :4.887e+17  
-    ##  1st Qu.:7.655e+17  
-    ##  Median :7.888e+17  
-    ##  Mean   :7.735e+17  
-    ##  3rd Qu.:8.153e+17  
-    ##  Max.   :9.126e+17  
-    ##  NA's   :2314       
-    ##                                                                                  source      
-    ##                                                                                     :145398  
-    ##  <a href="http://twitter.com" rel="nofollow">Twitter Web Client</a>                 : 42685  
-    ##  <a href="http://twitterfeed.com" rel="nofollow">twitterfeed</a>                    :  6926  
-    ##  <a href="https://about.twitter.com/products/tweetdeck" rel="nofollow">TweetDeck</a>:  6410  
-    ##  <a href="http://twibble.io" rel="nofollow">Twibble.io</a>                          :  1491  
-    ##  <a href="http://dlvr.it" rel="nofollow">dlvr.it</a>                                :   243  
-    ##  (Other)                                                                            :   329  
-    ##                      hashtags                  expanded_urls   
-    ##  []                      :114696   []                 :173789  
-    ##  ["Politics"]            :  3143   [""]               :  2538  
-    ##  ["news"]                :  1469   ["",""]            :   854  
-    ##  ["tcot"]                :  1033   ["","",""]         :   338  
-    ##  ["MerkelMussBleiben"]   :   796   ["","","",""]      :   202  
-    ##  ["RejectedDebateTopics"]:   614   ["","","","","",""]:   101  
-    ##  (Other)                 : 81731   (Other)            : 25660  
-    ##     posted                      mentions      retweeted_status_id
-    ##  POSTED:203482   []                 :163964   Min.   :7.676e+16  
-    ##                  ["realdonaldtrump"]:   658   1st Qu.:7.769e+17  
-    ##                  ["hillaryclinton"] :   315   Median :7.838e+17  
-    ##                  ["lindasuhler"]    :   245   Mean   :7.809e+17  
-    ##                  ["ten_gop"]        :   205   3rd Qu.:7.893e+17  
-    ##                  ["petefrt"]        :   184   Max.   :8.927e+17  
-    ##                  (Other)            : 37911   NA's   :163831     
-    ##  in_reply_to_status_id
-    ##  Min.   :6.108e+17    
-    ##  1st Qu.:7.627e+17    
-    ##  Median :7.736e+17    
-    ##  Mean   :7.719e+17    
-    ##  3rd Qu.:7.814e+17    
-    ##  Max.   :8.010e+17    
-    ##  NA's   :202923
+    ## Joining, by = c("created_str", "text", "r_nr")
+
+    ## Warning: Column `created_str` joining factors with different levels,
+    ## coercing to character vector
+
+    ## Warning: Column `text` joining factors with different levels, coercing to
+    ## character vector
 
 ``` r
-text_corpus<- VCorpus(VectorSource(rt$text))
+tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
+
+#change character to factor
+tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=TRUE)
+
+  
+text_corpus<- VCorpus(VectorSource(tot_tweets$text))
 print(text_corpus)
 ```
 
     ## <<VCorpus>>
     ## Metadata:  corpus specific: 0, document level (indexed): 0
-    ## Content:  documents: 203482
+    ## Content:  documents: 12000
 
 ``` r
-text_dtm <- DocumentTermMatrix(text_corpus, control = list(
- tolower = TRUE,
- removeNumbers= TRUE,
- stopwords=TRUE,
-removePunctuation= TRUE,
-stemming =TRUE )) 
+#cleaning tweets 
+text_corpus_clean<-tm_map(text_corpus,content_transformer(tolower))
 
-#removeURL <- function(x) gsub("http[[:alnum:]]*", "", x)
-#text_dtm<- tm_map(text_dtm, removeURL)
+text_corpus_clean<-tm_map(text_corpus_clean,removeNumbers)
+
+text_corpus_clean<-tm_map(text_corpus_clean,removeWords,stopwords())
+
+text_corpus_clean<-tm_map(text_corpus_clean,removePunctuation)
+
+                                                    text_corpus_clean<-tm_map(text_corpus_clean,stemDocument)
+                                                                                                         
+text_corpus_clean<-tm_map(text_corpus_clean,stripWhitespace)
+
+text_dtm <-DocumentTermMatrix(text_corpus_clean,control =
+                                list(wordLengths=c(0,Inf)))
 ```
 
 ``` r
-text_dtm_train<- text_dtm[1:152600,]
-text_dtm_test<- text_dtm[152601:203482,]
+text_dtm_train<- text_dtm[1:10000,]
+text_dtm_test<- text_dtm[10000:12000,]
+
+
+text_train_labels<- tot_tweets[1:10000,]$r_nr
+text_test_labels<- tot_tweets[10000:12000,]$r_nr
 ```
+
+``` r
+#Overall word graph
+wordcloud(text_corpus_clean, min.freq = 100,scale=c(2,.5),random.order = FALSE)
+```
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-1.png)
+
+``` r
+#Russian troll graph
+rus<-subset(tot_tweets,r_nr=="r")
+norus<-subset(tot_tweets,r_nr=="nr")
+
+wordcloud(rus$text, max.words = 40,scale = c(3,.5))
+```
+
+    ## Warning in tm_map.SimpleCorpus(corpus, tm::removePunctuation):
+    ## transformation drops documents
+
+    ## Warning in tm_map.SimpleCorpus(corpus, function(x) tm::removeWords(x,
+    ## tm::stopwords())): transformation drops documents
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-2.png)
+
+``` r
+#no russian trolls graph
+wordcloud(norus$text, max.words = 40, scale = c(3,.5))
+```
+
+    ## Warning in tm_map.SimpleCorpus(corpus, tm::removePunctuation):
+    ## transformation drops documents
+
+    ## Warning in tm_map.SimpleCorpus(corpus, tm::removePunctuation):
+    ## transformation drops documents
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-3.png)
+
+``` r
+#number of frequent terms
+tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
+ 
+ str(tweet_freq_words)
+```
+
+    ##  chr [1:2575] "â–¶" "â€¦" "â€˜" "â€“" "â€œi" "â«" "â»" "aâ€¦" "abl" ...
+
+``` r
+#DTM
+ 
+tweet_dtm_freq_train<- text_dtm_train[ , tweet_freq_words]
+tweet_dtm_freq_test <- text_dtm_test[ , tweet_freq_words]
+
+ convert_counts <- function(x) {
+ x <- ifelse(x > 0, "Yes", "No")
+ }
+
+tweet_train <- apply(tweet_dtm_freq_train, MARGIN = 2,
+ convert_counts)
+tweet_test <- apply(tweet_dtm_freq_test, MARGIN = 2,
+ convert_counts)
+  
+tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
+```
+
+``` r
+ tweet_test_pred <- predict(tweet_classifier, tweet_test)
+
+
+ CrossTable(tweet_test_pred, text_test_labels,
+ prop.chisq = FALSE, prop.t = FALSE,
+ dnn = c('predicted', 'actual'))
+```
+
+    ## 
+    ##  
+    ##    Cell Contents
+    ## |-------------------------|
+    ## |                       N |
+    ## |           N / Row Total |
+    ## |           N / Col Total |
+    ## |-------------------------|
+    ## 
+    ##  
+    ## Total Observations in Table:  2001 
+    ## 
+    ##  
+    ##              | actual 
+    ##    predicted |         r |        nr | Row Total | 
+    ## -------------|-----------|-----------|-----------|
+    ##            r |       888 |        20 |       908 | 
+    ##              |     0.978 |     0.022 |     0.454 | 
+    ##              |     0.893 |     0.020 |           | 
+    ## -------------|-----------|-----------|-----------|
+    ##           nr |       106 |       987 |      1093 | 
+    ##              |     0.097 |     0.903 |     0.546 | 
+    ##              |     0.107 |     0.980 |           | 
+    ## -------------|-----------|-----------|-----------|
+    ## Column Total |       994 |      1007 |      2001 | 
+    ##              |     0.497 |     0.503 |           | 
+    ## -------------|-----------|-----------|-----------|
+    ## 
+    ## 
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 
