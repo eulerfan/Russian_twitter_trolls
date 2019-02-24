@@ -1,8 +1,6 @@
 R Notebook
 ================
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
-
 Context As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
 
 For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."
@@ -16,7 +14,13 @@ Following the links will lead to a suspended page on Twitter. But some copies of
 Acknowledgements If you publish using the data, please credit NBC News and include a link to this page. Send questions to <ben.popken@nbcuni.com>.
 
 ``` r
- library(e1071)
+library(caTools)
+```
+
+    ## Warning: package 'caTools' was built under R version 3.4.4
+
+``` r
+library(e1071)
 ```
 
     ## Warning: package 'e1071' was built under R version 3.4.4
@@ -117,6 +121,8 @@ library(tm)
     ##     annotate
 
 ``` r
+library(effects)
+
 #nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
 #rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
 
@@ -249,7 +255,7 @@ tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
  str(tweet_freq_words)
 ```
 
-    ##  chr [1:2575] "â–¶" "â€¦" "â€˜" "â€“" "â€œi" "â«" "â»" "aâ€¦" "abl" ...
+    ##  chr [1:2609] "â" "â–¶" "â€¦" "â€˜" "â€“" "â€”" "â€¢" "â€œi" "â«" "â»" ...
 
 ``` r
 #DTM
@@ -294,22 +300,60 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
     ##              | actual 
     ##    predicted |         r |        nr | Row Total | 
     ## -------------|-----------|-----------|-----------|
-    ##            r |       888 |        20 |       908 | 
-    ##              |     0.978 |     0.022 |     0.454 | 
-    ##              |     0.893 |     0.020 |           | 
+    ##            r |       874 |        21 |       895 | 
+    ##              |     0.977 |     0.023 |     0.447 | 
+    ##              |     0.883 |     0.021 |           | 
     ## -------------|-----------|-----------|-----------|
-    ##           nr |       106 |       987 |      1093 | 
-    ##              |     0.097 |     0.903 |     0.546 | 
-    ##              |     0.107 |     0.980 |           | 
+    ##           nr |       116 |       990 |      1106 | 
+    ##              |     0.105 |     0.895 |     0.553 | 
+    ##              |     0.117 |     0.979 |           | 
     ## -------------|-----------|-----------|-----------|
-    ## Column Total |       994 |      1007 |      2001 | 
-    ##              |     0.497 |     0.503 |           | 
+    ## Column Total |       990 |      1011 |      2001 | 
+    ##              |     0.495 |     0.505 |           | 
     ## -------------|-----------|-----------|-----------|
     ## 
     ## 
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+``` r
+library(caret)
+```
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+    ## Warning: package 'caret' was built under R version 3.4.4
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+    ## Loading required package: lattice
+
+``` r
+ #logistic Regression
+
+sparse_dtm<-removeSparseTerms(text_dtm, 0.995)
+
+tweetsSparse<-as.data.frame(as.matrix(sparse_dtm))
+colnames(tweetsSparse)<-make.names(colnames(tweetsSparse))
+tweetsSparse$r_nr<-tot_tweets$r_nr
+
+
+set.seed(200)
+
+split<- sample.split(tweetsSparse$r_nr,SplitRatio=0.7)
+
+trainSparse<- subset(tweetsSparse, split=TRUE)
+testSparse<- subset(tweetsSparse, split=FALSE)
+
+tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
+```
+
+    ## Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
+
+``` r
+tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testSparse)
+
+
+cmatrix_logregr<-table(tweetsSparse$r_nr, tweet.logit.test<0.5)
+
+cmatrix_logregr
+```
+
+    ##     
+    ##      FALSE TRUE
+    ##   r    796 5204
+    ##   nr  5902   98
