@@ -1,4 +1,4 @@
-R Notebook
+Russian Twitter Trolls
 ================
 
 Context As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
@@ -13,20 +13,41 @@ Following the links will lead to a suspended page on Twitter. But some copies of
 
 Acknowledgements If you publish using the data, please credit NBC News and include a link to this page. Send questions to <ben.popken@nbcuni.com>.
 
+THIS Project
+
+In this mark down, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.
+
 ``` r
-library(caTools)
+library(ROCR)
+```
+
+    ## Warning: package 'ROCR' was built under R version 3.4.4
+
+    ## Loading required package: gplots
+
+    ## Warning: package 'gplots' was built under R version 3.4.4
+
+    ## 
+    ## Attaching package: 'gplots'
+
+    ## The following object is masked from 'package:stats':
+    ## 
+    ##     lowess
+
+``` r
+library(caTools)# ROC, AUC
 ```
 
     ## Warning: package 'caTools' was built under R version 3.4.4
 
 ``` r
-library(e1071)
+library(e1071) #  Naive Bayes 
 ```
 
     ## Warning: package 'e1071' was built under R version 3.4.4
 
 ``` r
-library(SnowballC)
+library(SnowballC) # stemming
 ```
 
     ## Warning: package 'SnowballC' was built under R version 3.4.4
@@ -36,25 +57,6 @@ library(gmodels)
 ```
 
     ## Warning: package 'gmodels' was built under R version 3.4.4
-
-``` r
-library(rtweet)
-```
-
-    ## Warning: package 'rtweet' was built under R version 3.4.4
-
-``` r
-library(twitteR)
-```
-
-    ## Warning: package 'twitteR' was built under R version 3.4.4
-
-    ## 
-    ## Attaching package: 'twitteR'
-
-    ## The following object is masked from 'package:rtweet':
-    ## 
-    ##     lookup_statuses
 
 ``` r
 library(tidytext)
@@ -70,10 +72,6 @@ library(dplyr)
 
     ## 
     ## Attaching package: 'dplyr'
-
-    ## The following objects are masked from 'package:twitteR':
-    ## 
-    ##     id, location
 
     ## The following objects are masked from 'package:stats':
     ## 
@@ -97,6 +95,13 @@ library(wordcloud)
 
     ## Loading required package: RColorBrewer
 
+    ## 
+    ## Attaching package: 'wordcloud'
+
+    ## The following object is masked from 'package:gplots':
+    ## 
+    ##     textplot
+
 ``` r
 library(tidyr)
 ```
@@ -104,7 +109,7 @@ library(tidyr)
     ## Warning: package 'tidyr' was built under R version 3.4.4
 
 ``` r
-library(tm)
+library(tm) # text data
 ```
 
     ## Warning: package 'tm' was built under R version 3.4.4
@@ -121,7 +126,7 @@ library(tm)
     ##     annotate
 
 ``` r
-library(effects)
+library(effects) # regession models
 
 #nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
 #rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
@@ -134,6 +139,8 @@ library(effects)
 #save(nt,file= "savednt.RData")
 ```
 
+Because the CSV files were so large, two Rdata files were created. This helped with a shorter run time and committing to Github.
+
 ``` r
 load("savednt.RData")
 
@@ -145,9 +152,6 @@ text<- as.character(rt$text)
 colnames(nt)[6]<- as.character(c("text"))
 colnames(nt)[3]<- "created_str"
 
-#created_str<-as.Date(nt$created_str)
-
-
 #adding a column Russian tweets
 rt$r_nr<-"r"
 
@@ -157,7 +161,6 @@ nt$r_nr<-"nr"
 
 ``` r
 #combining data sets
-
 
 tot_tweets<- full_join(nt,rt)
 ```
@@ -176,7 +179,7 @@ tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 #change character to factor
 tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=TRUE)
 
-  
+#creating a corpus for the twitter text
 text_corpus<- VCorpus(VectorSource(tot_tweets$text))
 print(text_corpus)
 ```
@@ -199,9 +202,13 @@ text_corpus_clean<-tm_map(text_corpus_clean,removePunctuation)
                                                                                                          
 text_corpus_clean<-tm_map(text_corpus_clean,stripWhitespace)
 
+
+#Tokenize the data
 text_dtm <-DocumentTermMatrix(text_corpus_clean,control =
                                 list(wordLengths=c(0,Inf)))
 ```
+
+We separate the data into a training set and a test set. Then create the labels for the two sets.
 
 ``` r
 text_dtm_train<- text_dtm[1:10000,]
@@ -211,6 +218,8 @@ text_dtm_test<- text_dtm[10000:12000,]
 text_train_labels<- tot_tweets[1:10000,]$r_nr
 text_test_labels<- tot_tweets[10000:12000,]$r_nr
 ```
+
+We can now create three word clouds. The first wordcloud shows all of the data together. The second cloud show just the russian troll texts. The third is no Russian trolls at all.
 
 ``` r
 #Overall word graph
@@ -249,20 +258,21 @@ wordcloud(norus$text, max.words = 40, scale = c(3,.5))
 ![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-3.png)
 
 ``` r
-#number of frequent terms
+#number of frequent terms. frenquency filter of words used less than 5 times
 tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
  
  str(tweet_freq_words)
 ```
 
-    ##  chr [1:2609] "â" "â–¶" "â€¦" "â€˜" "â€“" "â€”" "â€¢" "â€œi" "â«" "â»" ...
+    ##  chr [1:2620] "â" "â–¶" "â€¦" "â€˜" "â€“" "â€¢" "â€œi" "â«" "â»" ...
 
 ``` r
-#DTM
+#create DTM
  
 tweet_dtm_freq_train<- text_dtm_train[ , tweet_freq_words]
 tweet_dtm_freq_test <- text_dtm_test[ , tweet_freq_words]
 
+#Function for Change to categorical classifier, then apply to the columns
  convert_counts <- function(x) {
  x <- ifelse(x > 0, "Yes", "No")
  }
@@ -300,19 +310,62 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
     ##              | actual 
     ##    predicted |         r |        nr | Row Total | 
     ## -------------|-----------|-----------|-----------|
-    ##            r |       874 |        21 |       895 | 
-    ##              |     0.977 |     0.023 |     0.447 | 
-    ##              |     0.883 |     0.021 |           | 
+    ##            r |       903 |        22 |       925 | 
+    ##              |     0.976 |     0.024 |     0.462 | 
+    ##              |     0.899 |     0.022 |           | 
     ## -------------|-----------|-----------|-----------|
-    ##           nr |       116 |       990 |      1106 | 
-    ##              |     0.105 |     0.895 |     0.553 | 
-    ##              |     0.117 |     0.979 |           | 
+    ##           nr |       102 |       974 |      1076 | 
+    ##              |     0.095 |     0.905 |     0.538 | 
+    ##              |     0.101 |     0.978 |           | 
     ## -------------|-----------|-----------|-----------|
-    ## Column Total |       990 |      1011 |      2001 | 
-    ##              |     0.495 |     0.505 |           | 
+    ## Column Total |      1005 |       996 |      2001 | 
+    ##              |     0.502 |     0.498 |           | 
     ## -------------|-----------|-----------|-----------|
     ## 
     ## 
+
+``` r
+#create ROC for Naive Bayes
+troc<-predict(tweet_classifier,tweet_test, type = "raw")
+predt<- prediction(troc[,"nr"],text_test_labels)
+
+#calculate the area
+auc<-performance(predt,"auc")
+
+
+perf_r<- performance(predt, measure ='tpr',x.measure='fpr')
+plot(perf_r,colorize=T)
+```
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+``` r
+    # abline(a=0,b=1))
+     #legend(.6,.2,auc, title = "AUC"),
+     #main= "ROC Curve")
+print(auc)
+```
+
+    ## An object of class "performance"
+    ## Slot "x.name":
+    ## [1] "None"
+    ## 
+    ## Slot "y.name":
+    ## [1] "Area under the ROC curve"
+    ## 
+    ## Slot "alpha.name":
+    ## [1] "none"
+    ## 
+    ## Slot "x.values":
+    ## list()
+    ## 
+    ## Slot "y.values":
+    ## [[1]]
+    ## [1] 0.9815231
+    ## 
+    ## 
+    ## Slot "alpha.values":
+    ## list()
 
 ``` r
 library(caret)
@@ -325,19 +378,20 @@ library(caret)
 ``` r
  #logistic Regression
 
-sparse_dtm<-removeSparseTerms(text_dtm, 0.995)
+sparse_dtm<-removeSparseTerms(text_dtm, 0.99) #terms appear in more than 1% of tweets
 
+#new Data frame
 tweetsSparse<-as.data.frame(as.matrix(sparse_dtm))
 colnames(tweetsSparse)<-make.names(colnames(tweetsSparse))
 tweetsSparse$r_nr<-tot_tweets$r_nr
 
-
+#split the data set
 set.seed(200)
 
 split<- sample.split(tweetsSparse$r_nr,SplitRatio=0.7)
 
-trainSparse<- subset(tweetsSparse, split=TRUE)
-testSparse<- subset(tweetsSparse, split=FALSE)
+trainSparse<- subset(tweetsSparse, split=TRUE)#in split 
+testSparse<- subset(tweetsSparse, split=FALSE)#not in split
 
 tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
 ```
@@ -348,12 +402,34 @@ tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testSparse)
 
 
-cmatrix_logregr<-table(tweetsSparse$r_nr, tweet.logit.test<0.5)
+cmatrix_logregr<-table(testSparse$r_nr, tweet.logit.test<0.5)
 
 cmatrix_logregr
 ```
 
     ##     
     ##      FALSE TRUE
-    ##   r    796 5204
-    ##   nr  5902   98
+    ##   r   1030 4970
+    ##   nr  5939   61
+
+``` r
+#Descision tree
+library(rpart)
+```
+
+    ## Warning: package 'rpart' was built under R version 3.4.4
+
+``` r
+library(rpart.plot)
+```
+
+    ## Warning: package 'rpart.plot' was built under R version 3.4.4
+
+``` r
+tweetCART <- rpart(r_nr ~ . , data = trainSparse, method = "class")
+prp(tweetCART)
+```
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-10-1.png) If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
+
+Overall Naive Bayes return the most promising results for filtering tweets against a wide range of tweets.
