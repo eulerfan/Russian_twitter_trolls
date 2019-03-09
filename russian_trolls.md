@@ -139,7 +139,7 @@ library(effects) # regession models
 #save(nt,file= "savednt.RData")
 ```
 
-Because the CSV files were so large, two Rdata files were created. This helped with a shorter run time and committing to Github.
+Because the CSV files were so large, two Rdata files were created: savedrt.Rdata for the russian trolls and savednt.RData for accounts that are not troll. This helped with a shorter run time and committing to Github.
 
 ``` r
 load("savednt.RData")
