@@ -1,9 +1,11 @@
 Russian Twitter Trolls
 ================
 
-Context As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
+Context
 
-For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."
+As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
+
+For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."[NBC Russian Tweets](https://www.nbcnews.com/tech/social-media/now-available-more-200-000-deleted-russian-troll-tweets-n844731)
 
 Content This dataset contains two CSV files. tweets.csv includes details on individual tweets, while users.csv includes details on individual accounts.
 
@@ -15,7 +17,7 @@ Acknowledgements If you publish using the data, please credit NBC News and inclu
 
 THIS Project
 
-In this Document, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.
+In this mark down, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.
 
 ``` r
 library(ROCR)
@@ -139,7 +141,7 @@ library(effects) # regession models
 #save(nt,file= "savednt.RData")
 ```
 
-Because the CSV files were so large, two Rdata files were created: savedrt.Rdata for the russian trolls and savednt.RData for accounts that are not troll. This helped with a shorter run time and committing to Github.
+Because the CSV files were so large, two Rdata files were created. This helped with a shorter run time and committing to Github.
 
 ``` r
 load("savednt.RData")
@@ -152,28 +154,22 @@ text<- as.character(rt$text)
 colnames(nt)[6]<- as.character(c("text"))
 colnames(nt)[3]<- "created_str"
 
+#extracting columns
+rtext<-select(rt,"text")
+ntext<-select(nt,"text")
+
+
 #adding a column Russian tweets
-rt$r_nr<-"r"
+rtext$r_nr<-"r"
 
 #adding column to non_russian tweets
-nt$r_nr<-"nr"
+ntext$r_nr<-"nr"
 ```
 
 ``` r
-#combining data sets
+#combining data sets, sample function randomizes order of rows
 
-tot_tweets<- full_join(nt,rt)
-```
-
-    ## Joining, by = c("created_str", "text", "r_nr")
-
-    ## Warning: Column `created_str` joining factors with different levels,
-    ## coercing to character vector
-
-    ## Warning: Column `text` joining factors with different levels, coercing to
-    ## character vector
-
-``` r
+tot_tweets<- rbind(ntext,rtext,stringAsfactors=FALSE)
 tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 
 #change character to factor
@@ -186,7 +182,7 @@ print(text_corpus)
 
     ## <<VCorpus>>
     ## Metadata:  corpus specific: 0, document level (indexed): 0
-    ## Content:  documents: 12000
+    ## Content:  documents: 12001
 
 ``` r
 #cleaning tweets 
@@ -212,11 +208,11 @@ We separate the data into a training set and a test set. Then create the labels 
 
 ``` r
 text_dtm_train<- text_dtm[1:10000,]
-text_dtm_test<- text_dtm[10000:12000,]
+text_dtm_test<- text_dtm[10001:12000,]
 
 
 text_train_labels<- tot_tweets[1:10000,]$r_nr
-text_test_labels<- tot_tweets[10000:12000,]$r_nr
+text_test_labels<- tot_tweets[10001:12000,]$r_nr
 ```
 
 We can now create three word clouds. The first wordcloud shows all of the data together. The second cloud show just the russian troll texts. The third is no Russian trolls at all.
@@ -264,7 +260,7 @@ tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
  str(tweet_freq_words)
 ```
 
-    ##  chr [1:2620] "â" "â–¶" "â€¦" "â€˜" "â€“" "â€¢" "â€œi" "â«" "â»" ...
+    ##  chr [1:2611] "â" "â–¶" "â€¦" "â€˜" "â€“" "â€¢" "â€œ" "â«" "â»" "aâ€¦" ...
 
 ``` r
 #create DTM
@@ -304,22 +300,22 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
     ## |-------------------------|
     ## 
     ##  
-    ## Total Observations in Table:  2001 
+    ## Total Observations in Table:  2000 
     ## 
     ##  
     ##              | actual 
     ##    predicted |         r |        nr | Row Total | 
     ## -------------|-----------|-----------|-----------|
-    ##            r |       903 |        22 |       925 | 
-    ##              |     0.976 |     0.024 |     0.462 | 
-    ##              |     0.899 |     0.022 |           | 
+    ##            r |       890 |        21 |       911 | 
+    ##              |     0.977 |     0.023 |     0.456 | 
+    ##              |     0.900 |     0.021 |           | 
     ## -------------|-----------|-----------|-----------|
-    ##           nr |       102 |       974 |      1076 | 
-    ##              |     0.095 |     0.905 |     0.538 | 
-    ##              |     0.101 |     0.978 |           | 
+    ##           nr |        99 |       990 |      1089 | 
+    ##              |     0.091 |     0.909 |     0.544 | 
+    ##              |     0.100 |     0.979 |           | 
     ## -------------|-----------|-----------|-----------|
-    ## Column Total |      1005 |       996 |      2001 | 
-    ##              |     0.502 |     0.498 |           | 
+    ## Column Total |       989 |      1011 |      2000 | 
+    ##              |     0.494 |     0.505 |           | 
     ## -------------|-----------|-----------|-----------|
     ## 
     ## 
@@ -361,7 +357,7 @@ print(auc)
     ## 
     ## Slot "y.values":
     ## [[1]]
-    ## [1] 0.9815231
+    ## [1] 0.983643
     ## 
     ## 
     ## Slot "alpha.values":
@@ -388,10 +384,10 @@ tweetsSparse$r_nr<-tot_tweets$r_nr
 #split the data set
 set.seed(200)
 
-split<- sample.split(tweetsSparse$r_nr,SplitRatio=0.7)
+split<- sample.split(tweetsSparse,SplitRatio=2/3)
 
-trainSparse<- subset(tweetsSparse, split=TRUE)#in split 
-testSparse<- subset(tweetsSparse, split=FALSE)#not in split
+trainSparse<- subset(tweetsSparse, split=="TRUE")#in split 
+testSparse<- subset(tweetsSparse, split=="FALSE")#not in split
 
 tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
 ```
@@ -402,15 +398,27 @@ tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testSparse)
 
 
-cmatrix_logregr<-table(testSparse$r_nr, tweet.logit.test<0.5)
+cmatrix_logregr<-table(testSparse$r_nr, tweet.logit.test>0.5)
 
 cmatrix_logregr
 ```
 
     ##     
     ##      FALSE TRUE
-    ##   r   1030 4970
-    ##   nr  5939   61
+    ##   r   1695  332
+    ##   nr    22 2037
+
+``` r
+tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
+cmatrix1 <-table(trainSparse$r_nr,tweet.logit.test1>0.5)
+
+cmatrix1
+```
+
+    ##     
+    ##      FALSE TRUE
+    ##   r   3268  705
+    ##   nr    38 3903
 
 ``` r
 #Descision tree

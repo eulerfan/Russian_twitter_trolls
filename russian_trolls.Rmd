@@ -5,9 +5,10 @@ output: github_document
 
 
 Context
+
 As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
 
-For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."
+For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."[NBC Russian Tweets]( https://www.nbcnews.com/tech/social-media/now-available-more-200-000-deleted-russian-troll-tweets-n844731)
 
 Content
 This dataset contains two CSV files. tweets.csv includes details on individual tweets, while users.csv includes details on individual accounts.
@@ -64,20 +65,24 @@ text<- as.character(rt$text)
 colnames(nt)[6]<- as.character(c("text"))
 colnames(nt)[3]<- "created_str"
 
+#extracting columns
+rtext<-select(rt,"text")
+ntext<-select(nt,"text")
+
+
 #adding a column Russian tweets
-rt$r_nr<-"r"
+rtext$r_nr<-"r"
 
 #adding column to non_russian tweets
-nt$r_nr<-"nr"
-
+ntext$r_nr<-"nr"
 
 ```
 
 ```{r}
 
-#combining data sets
+#combining data sets, sample function randomizes order of rows
 
-tot_tweets<- full_join(nt,rt)
+tot_tweets<- rbind(ntext,rtext,stringAsfactors=FALSE)
 tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 
 #change character to factor
@@ -110,11 +115,11 @@ text_dtm <-DocumentTermMatrix(text_corpus_clean,control =
 We separate the data into a training set and a test set. Then create the labels for the two sets. 
 ```{r}
 text_dtm_train<- text_dtm[1:10000,]
-text_dtm_test<- text_dtm[10000:12000,]
+text_dtm_test<- text_dtm[10001:12000,]
 
 
 text_train_labels<- tot_tweets[1:10000,]$r_nr
-text_test_labels<- tot_tweets[10000:12000,]$r_nr
+text_test_labels<- tot_tweets[10001:12000,]$r_nr
 
 
 ```
@@ -203,23 +208,27 @@ tweetsSparse$r_nr<-tot_tweets$r_nr
 #split the data set
 set.seed(200)
 
-split<- sample.split(tweetsSparse$r_nr,SplitRatio=0.7)
+split<- sample.split(tweetsSparse,SplitRatio=2/3)
 
-trainSparse<- subset(tweetsSparse, split=TRUE)#in split 
-testSparse<- subset(tweetsSparse, split=FALSE)#not in split
+trainSparse<- subset(tweetsSparse, split=="TRUE")#in split 
+testSparse<- subset(tweetsSparse, split=="FALSE")#not in split
 
 tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
 
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testSparse)
 
 
-cmatrix_logregr<-table(testSparse$r_nr, tweet.logit.test<0.5)
+cmatrix_logregr<-table(testSparse$r_nr, tweet.logit.test>0.5)
 
 cmatrix_logregr
 
+tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
+cmatrix1 <-table(trainSparse$r_nr,tweet.logit.test1>0.5)
+
+cmatrix1
+
 ```
 ```{r}
-
 #Descision tree
 library(rpart)
 library(rpart.plot)
