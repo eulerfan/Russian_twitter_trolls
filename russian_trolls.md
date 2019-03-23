@@ -260,7 +260,7 @@ tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
  str(tweet_freq_words)
 ```
 
-    ##  chr [1:2611] "â" "â–¶" "â€¦" "â€˜" "â€“" "â€¢" "â€œ" "â«" "â»" "aâ€¦" ...
+    ##  chr [1:2590] "â–¶" "â€¦" "â€˜" "â€“" "â€œ" "â«" "â»" "aâ€¦" "abc" ...
 
 ``` r
 #create DTM
@@ -306,16 +306,16 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
     ##              | actual 
     ##    predicted |         r |        nr | Row Total | 
     ## -------------|-----------|-----------|-----------|
-    ##            r |       890 |        21 |       911 | 
-    ##              |     0.977 |     0.023 |     0.456 | 
-    ##              |     0.900 |     0.021 |           | 
+    ##            r |       894 |        23 |       917 | 
+    ##              |     0.975 |     0.025 |     0.459 | 
+    ##              |     0.902 |     0.023 |           | 
     ## -------------|-----------|-----------|-----------|
-    ##           nr |        99 |       990 |      1089 | 
-    ##              |     0.091 |     0.909 |     0.544 | 
-    ##              |     0.100 |     0.979 |           | 
+    ##           nr |        97 |       986 |      1083 | 
+    ##              |     0.090 |     0.910 |     0.541 | 
+    ##              |     0.098 |     0.977 |           | 
     ## -------------|-----------|-----------|-----------|
-    ## Column Total |       989 |      1011 |      2000 | 
-    ##              |     0.494 |     0.505 |           | 
+    ## Column Total |       991 |      1009 |      2000 | 
+    ##              |     0.495 |     0.504 |           | 
     ## -------------|-----------|-----------|-----------|
     ## 
     ## 
@@ -336,9 +336,6 @@ plot(perf_r,colorize=T)
 ![](russian_trolls_files/figure-markdown_github/unnamed-chunk-8-1.png)
 
 ``` r
-    # abline(a=0,b=1))
-     #legend(.6,.2,auc, title = "AUC"),
-     #main= "ROC Curve")
 print(auc)
 ```
 
@@ -357,7 +354,7 @@ print(auc)
     ## 
     ## Slot "y.values":
     ## [[1]]
-    ## [1] 0.983643
+    ## [1] 0.9781447
     ## 
     ## 
     ## Slot "alpha.values":
@@ -405,8 +402,8 @@ cmatrix_logregr
 
     ##     
     ##      FALSE TRUE
-    ##   r   1695  332
-    ##   nr    22 2037
+    ##   r   1723  340
+    ##   nr    31 1992
 
 ``` r
 tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
@@ -417,8 +414,8 @@ cmatrix1
 
     ##     
     ##      FALSE TRUE
-    ##   r   3268  705
-    ##   nr    38 3903
+    ##   r   3255  682
+    ##   nr    38 3939
 
 ``` r
 #Descision tree
@@ -438,6 +435,8 @@ tweetCART <- rpart(r_nr ~ . , data = trainSparse, method = "class")
 prp(tweetCART)
 ```
 
-![](russian_trolls_files/figure-markdown_github/unnamed-chunk-10-1.png) If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-10-1.png)
+
+If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
 
 Overall Naive Bayes return the most promising results for filtering tweets against a wide range of tweets.
