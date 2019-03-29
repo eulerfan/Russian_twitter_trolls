@@ -88,7 +88,7 @@ tot_tweets<- rbind(ntext,rtext,stringAsfactors=FALSE)
 tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 
 #change character to factor
-tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=TRUE)
+tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=FALSE)
 
 #creating a corpus for the twitter text
 text_corpus<- VCorpus(VectorSource(tot_tweets$text))
@@ -144,8 +144,8 @@ wordcloud(norus$text, max.words = 40, scale = c(3,.5))
 ```
 
 ```{r}
-#number of frequent terms. frenquency filter of words used less than 5 times
-tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
+#number of frequent terms. frenquency filter of words used less than 20 times
+tweet_freq_words <- findFreqTerms(text_dtm_train, 20)
  
  str(tweet_freq_words)
  
@@ -181,7 +181,9 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
 
 #create ROC for Naive Bayes
 troc<-predict(tweet_classifier,tweet_test, type = "raw")
-predt<- prediction(troc[,"nr"],text_test_labels)
+predt<- prediction(troc[,"r"],text_test_labels)
+
+
 
 #calculate the area
 auc<-performance(predt,"auc")
@@ -198,9 +200,12 @@ print(auc)
 ```{r echo=TRUE}
 
 library(caret)
+library(safeBinaryRegression)
+library(glmnet)
+library(Matrix)
  #logistic Regression
 
-sparse_dtm<-removeSparseTerms(text_dtm, 0.99) #terms appear in more than 1% of tweets
+sparse_dtm<-removeSparseTerms(text_dtm, 0.995) #terms appear in more than .5% of tweets or 230 
 
 #new Data frame
 tweetsSparse<-as.data.frame(as.matrix(sparse_dtm))
@@ -208,19 +213,18 @@ colnames(tweetsSparse)<-make.names(colnames(tweetsSparse))
 tweetsSparse$r_nr<-tot_tweets$r_nr
 
 #split the data set
-set.seed(200)
 
-split<- sample.split(tweetsSparse,SplitRatio=2/3)
+trainSparse<- tweetsSparse[1:9000,]
+testS<- tweetsSparse[9001:12000,]
 
-trainSparse<- subset(tweetsSparse, split=="TRUE")#in split 
-testSparse<- subset(tweetsSparse, split=="FALSE")#not in split
+y<-trainSparse[1:8999,"r_nr"]
+x<-as.matrix(r_nr~.,data=trainSparse)
+tweet.logit <-glmnet(x,y, family = "binomial")
 
-tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
-
-tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testSparse)
+tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
 
 
-cmatrix_logregr<-table(testSparse$r_nr, tweet.logit.test>0.5)
+cmatrix_logregr<-table(testS$r_nr, tweet.logit.test>0.5)
 
 cmatrix_logregr
 
@@ -230,16 +234,15 @@ cmatrix1 <-table(trainSparse$r_nr,tweet.logit.test1>0.5)
 cmatrix1
 
 #create ROC for Logistic Regression
-testSparse$r_nr<-factor(testSparse$r_nr,levels =c(0,1))
-troc2<-prediction(tweet.logit.test,testSparse$r_nr)
-
-#calculate the area under the ROC
-auc2<-performance(troc2,measure = "auc",x.measure = "cutoff")
-
+testSparse$r_nr<-factor(testS$r_nr,levels =c(0,1))
+troc2<-prediction(tweet.logit.test,testS$r_nr)
 
 perf_r2<- performance(troc2, measure ='tpr',x.measure='fpr')
 plot(perf_r2,colorize=T, main="Logistic Regression")
-    
+
+#calculate the area under the ROC
+auc2<-performance(troc2,measure = "auc")
+
 
 print(auc2)
 
@@ -252,18 +255,24 @@ library(rpart.plot)
 tweetcart<- rpart(r_nr~.,data = trainSparse, method = "class")
 prp(tweetcart)
 
-predtcart<-predict(tweetcart,newdata=testSparse,type = "class")
-cartable<-table(testSparse$r_nr,predtcart)
+predtcart<-predict(tweetcart,newdata=testS,type = "class")
+cartable<-table(testS$r_nr,predtcart)
+
 
 print(cartable)
+
 #Random Forest
 library(randomForest)
 russianForest<- randomForest(r_nr~.,data=trainSparse,nodesize=25,ntrees=200,na.action=na.roughfix)
-predictForest<-predict(russianForest, newdata=testSparse)
+predictForest<-predict(russianForest, newdata=testS)
 
 table(testSparse$r_nr,predictForest)
 
 #random forest ROC
+rfroc<-prediction(predictForest,testS$r_nr)
+perf_3<- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
+plot(perf_3, colorize =T, main= "Random Forest")
+
 ```
 
 
