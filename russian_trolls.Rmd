@@ -217,9 +217,11 @@ tweetsSparse$r_nr<-tot_tweets$r_nr
 trainSparse<- tweetsSparse[1:9000,]
 testS<- tweetsSparse[9001:12000,]
 
-y<-trainSparse[1:8999,"r_nr"]
-x<-as.matrix(r_nr~.,data=trainSparse)
-tweet.logit <-glmnet(x,y, family = "binomial")
+#y<-trainSparse[1:8999,"r_nr"]
+#x<-as.matrix(r_nr~.,data=trainSparse)
+#tweet.logit <-glmnet(x,y, family = "binomial")
+
+tweet.logit<- glm(r_nr~.,trainSparse, family = "binomial")
 
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
 
@@ -266,10 +268,10 @@ library(randomForest)
 russianForest<- randomForest(r_nr~.,data=trainSparse,nodesize=25,ntrees=200,na.action=na.roughfix)
 predictForest<-predict(russianForest, newdata=testS)
 
-table(testSparse$r_nr,predictForest)
+table(testS$r_nr,predictForest)
 
 #random forest ROC
-rfroc<-prediction(predictForest,testS$r_nr)
+rfroc<-prediction(as.numeric(predictForest),as.numeric(testS$r_nr))
 perf_3<- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
 plot(perf_3, colorize =T, main= "Random Forest")
 
