@@ -1,11 +1,11 @@
-R Notebook
+Russian Twitter Trolls
 ================
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
+Context
 
-Context As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
+As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
 
-For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."
+For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."[NBC Russian Tweets](https://www.nbcnews.com/tech/social-media/now-available-more-200-000-deleted-russian-troll-tweets-n844731)
 
 Content This dataset contains two CSV files. tweets.csv includes details on individual tweets, while users.csv includes details on individual accounts.
 
@@ -15,24 +15,50 @@ Following the links will lead to a suspended page on Twitter. But some copies of
 
 Acknowledgements If you publish using the data, please credit NBC News and include a link to this page. Send questions to <ben.popken@nbcuni.com>.
 
-``` r
-library(rtweet)
-```
+THIS Project
 
-    ## Warning: package 'rtweet' was built under R version 3.4.4
+In this mark down, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.
 
 ``` r
-library(twitteR)
+library(ROCR)
 ```
 
-    ## Warning: package 'twitteR' was built under R version 3.4.4
+    ## Warning: package 'ROCR' was built under R version 3.4.4
+
+    ## Loading required package: gplots
+
+    ## Warning: package 'gplots' was built under R version 3.4.4
 
     ## 
-    ## Attaching package: 'twitteR'
+    ## Attaching package: 'gplots'
 
-    ## The following object is masked from 'package:rtweet':
+    ## The following object is masked from 'package:stats':
     ## 
-    ##     lookup_statuses
+    ##     lowess
+
+``` r
+library(caTools)# ROC, AUC
+```
+
+    ## Warning: package 'caTools' was built under R version 3.4.4
+
+``` r
+library(e1071) #  Naive Bayes 
+```
+
+    ## Warning: package 'e1071' was built under R version 3.4.4
+
+``` r
+library(SnowballC) # stemming
+```
+
+    ## Warning: package 'SnowballC' was built under R version 3.4.4
+
+``` r
+library(gmodels)
+```
+
+    ## Warning: package 'gmodels' was built under R version 3.4.4
 
 ``` r
 library(tidytext)
@@ -48,10 +74,6 @@ library(dplyr)
 
     ## 
     ## Attaching package: 'dplyr'
-
-    ## The following objects are masked from 'package:twitteR':
-    ## 
-    ##     id, location
 
     ## The following objects are masked from 'package:stats':
     ## 
@@ -75,6 +97,13 @@ library(wordcloud)
 
     ## Loading required package: RColorBrewer
 
+    ## 
+    ## Attaching package: 'wordcloud'
+
+    ## The following object is masked from 'package:gplots':
+    ## 
+    ##     textplot
+
 ``` r
 library(tidyr)
 ```
@@ -82,7 +111,7 @@ library(tidyr)
     ## Warning: package 'tidyr' was built under R version 3.4.4
 
 ``` r
-library(tm)
+library(tm) # text data
 ```
 
     ## Warning: package 'tm' was built under R version 3.4.4
@@ -99,140 +128,315 @@ library(tm)
     ##     annotate
 
 ``` r
-rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
+library(effects) # regession models
 
-user.rt<-read.csv("C:/Users/John/Documents/R/russian_trolls/users.csv")
+#nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
+#rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
+
+#set.seed(33)
+#rt <- data.frame(sample_n(rt,6000,replace=FALSE))
+#nt<-data.frame(sample_n(nt,6000,replace = FALSE))
+
+#save(rt,file = "savedrt.RData")
+#save(nt,file= "savednt.RData")
+```
+
+Because the CSV files were so large, two Rdata files were created. This helped with a shorter run time and committing to Github.
+
+``` r
+load("savednt.RData")
+
+load("savedrt.RData")
 
 #renameing Features
 created_str <-as.Date(rt$created_str)
 text<- as.character(rt$text)
+colnames(nt)[6]<- as.character(c("text"))
+colnames(nt)[3]<- "created_str"
 
-str(rt)
+#extracting columns
+rtext<-select(rt,"text")
+ntext<-select(nt,"text")
+
+
+#adding a column Russian tweets
+rtext$r_nr<-"r"
+
+#adding column to non_russian tweets
+ntext$r_nr<-"nr"
 ```
 
-    ## 'data.frame':    203482 obs. of  16 variables:
-    ##  $ user_id              : num  1.87e+09 2.57e+09 1.71e+09 2.58e+09 1.77e+09 ...
-    ##  $ user_key             : Factor w/ 454 levels "_billy_moyer_",..: 374 117 97 348 294 151 38 224 22 168 ...
-    ##  $ created_at           : num  1.46e+12 1.48e+12 1.49e+12 1.48e+12 1.50e+12 ...
-    ##  $ created_str          : Factor w/ 198422 levels "","2014-07-14 18:04:55",..: 32435 91101 176773 145243 197791 104222 181292 147779 106367 31601 ...
-    ##  $ retweet_count        : int  NA 0 NA NA NA NA NA NA 0 NA ...
-    ##  $ retweeted            : Factor w/ 2 levels "","false": 1 2 1 1 1 1 1 1 2 1 ...
-    ##  $ favorite_count       : int  NA 0 NA NA NA NA NA NA 0 NA ...
-    ##  $ text                 : Factor w/ 174986 levels "","'#SickHillary refuses to answer question about concussion, walks away. #LaueringTheBar\nhttps://t.co/7DK8P8yiC0"| __truncated__,..: 5381 21469 109742 101811 139848 14826 112855 42146 49739 39072 ...
-    ##  $ tweet_id             : num  7.12e+17 7.86e+17 8.34e+17 8.13e+17 8.94e+17 ...
-    ##  $ source               : Factor w/ 20 levels "","<a href=\"http://bufferapp.com\" rel=\"nofollow\">Buffer</a>",..: 1 15 1 1 1 1 1 1 11 1 ...
-    ##  $ hashtags             : Factor w/ 18343 levels "[\"_Malikalovess\"]",..: 7768 18343 18343 2484 18343 18343 18343 18343 18343 1626 ...
-    ##  $ expanded_urls        : Factor w/ 22215 levels "[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"]",..: 22215 5456 22215 22215 22215 22215 22215 22215 11374 22215 ...
-    ##  $ posted               : Factor w/ 1 level "POSTED": 1 1 1 1 1 1 1 1 1 1 ...
-    ##  $ mentions             : Factor w/ 16683 levels "[\"___lorraine__\"]",..: 16683 16683 16683 16683 16683 16683 16683 16683 881 16683 ...
-    ##  $ retweeted_status_id  : num  NA NA NA NA NA ...
-    ##  $ in_reply_to_status_id: num  NA NA NA NA NA NA NA NA NA NA ...
-
 ``` r
-summary(rt)
-```
+#combining data sets, sample function randomizes order of rows
 
-    ##     user_id                    user_key        created_at       
-    ##  Min.   :1.871e+07   ameliebaldwin :  9269   Min.   :1.405e+12  
-    ##  1st Qu.:1.671e+09   hyddrox       :  6813   1st Qu.:1.471e+12  
-    ##  Median :1.857e+09   giselleevns   :  6652   Median :1.477e+12  
-    ##  Mean   :1.404e+16   patriotblake  :  4140   Mean   :1.473e+12  
-    ##  3rd Qu.:2.590e+09   thefoundingson:  3663   3rd Qu.:1.483e+12  
-    ##  Max.   :7.893e+17   melvinsroberts:  3346   Max.   :1.506e+12  
-    ##  NA's   :8065        (Other)       :169599   NA's   :21         
-    ##               created_str     retweet_count      retweeted     
-    ##                     :    21   Min.   :    0.00        :145399  
-    ##  2016-02-03 12:42:11:     6   1st Qu.:    0.00   false: 58083  
-    ##  2016-02-05 12:08:51:     6   Median :    0.00                 
-    ##  2016-02-11 07:39:05:     6   Mean   :   39.64                 
-    ##  2016-02-11 07:59:33:     6   3rd Qu.:    0.00                 
-    ##  2016-02-14 18:59:29:     6   Max.   :20494.00                 
-    ##  (Other)            :203431   NA's   :145399                   
-    ##  favorite_count   
-    ##  Min.   :    0.0  
-    ##  1st Qu.:    0.0  
-    ##  Median :    0.0  
-    ##  Mean   :   35.5  
-    ##  3rd Qu.:    0.0  
-    ##  Max.   :26655.0  
-    ##  NA's   :145399   
-    ##                                                                                                                                  text       
-    ##  RT @MarkAlmost: MT @jstines3: Dear LORD, please bless                                                                             :    30  
-    ##                                                                                                                                    :    21  
-    ##  RT @AtomicElbow1: Trump twitter suspended #2016ElectionIn3Words                                                                   :    17  
-    ##  RT @lgmaterna: Anyone voting Clinton #LostIn3Words                                                                                :    16  
-    ##  RT @The_Anti_Fox: 7yrs                                                                                                            :    16  
-    ##  RT @AndyHashtagger: #TrumpsFavoriteHeadline An army of Trump clones is ready to fight and serve its master https://t.co/HQgXvUtVsQ:    15  
-    ##  (Other)                                                                                                                           :203367  
-    ##     tweet_id        
-    ##  Min.   :4.887e+17  
-    ##  1st Qu.:7.655e+17  
-    ##  Median :7.888e+17  
-    ##  Mean   :7.735e+17  
-    ##  3rd Qu.:8.153e+17  
-    ##  Max.   :9.126e+17  
-    ##  NA's   :2314       
-    ##                                                                                  source      
-    ##                                                                                     :145398  
-    ##  <a href="http://twitter.com" rel="nofollow">Twitter Web Client</a>                 : 42685  
-    ##  <a href="http://twitterfeed.com" rel="nofollow">twitterfeed</a>                    :  6926  
-    ##  <a href="https://about.twitter.com/products/tweetdeck" rel="nofollow">TweetDeck</a>:  6410  
-    ##  <a href="http://twibble.io" rel="nofollow">Twibble.io</a>                          :  1491  
-    ##  <a href="http://dlvr.it" rel="nofollow">dlvr.it</a>                                :   243  
-    ##  (Other)                                                                            :   329  
-    ##                      hashtags                  expanded_urls   
-    ##  []                      :114696   []                 :173789  
-    ##  ["Politics"]            :  3143   [""]               :  2538  
-    ##  ["news"]                :  1469   ["",""]            :   854  
-    ##  ["tcot"]                :  1033   ["","",""]         :   338  
-    ##  ["MerkelMussBleiben"]   :   796   ["","","",""]      :   202  
-    ##  ["RejectedDebateTopics"]:   614   ["","","","","",""]:   101  
-    ##  (Other)                 : 81731   (Other)            : 25660  
-    ##     posted                      mentions      retweeted_status_id
-    ##  POSTED:203482   []                 :163964   Min.   :7.676e+16  
-    ##                  ["realdonaldtrump"]:   658   1st Qu.:7.769e+17  
-    ##                  ["hillaryclinton"] :   315   Median :7.838e+17  
-    ##                  ["lindasuhler"]    :   245   Mean   :7.809e+17  
-    ##                  ["ten_gop"]        :   205   3rd Qu.:7.893e+17  
-    ##                  ["petefrt"]        :   184   Max.   :8.927e+17  
-    ##                  (Other)            : 37911   NA's   :163831     
-    ##  in_reply_to_status_id
-    ##  Min.   :6.108e+17    
-    ##  1st Qu.:7.627e+17    
-    ##  Median :7.736e+17    
-    ##  Mean   :7.719e+17    
-    ##  3rd Qu.:7.814e+17    
-    ##  Max.   :8.010e+17    
-    ##  NA's   :202923
+tot_tweets<- rbind(ntext,rtext,stringAsfactors=FALSE)
+tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 
-``` r
-text_corpus<- VCorpus(VectorSource(rt$text))
+#change character to factor
+tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=TRUE)
+
+#creating a corpus for the twitter text
+text_corpus<- VCorpus(VectorSource(tot_tweets$text))
 print(text_corpus)
 ```
 
     ## <<VCorpus>>
     ## Metadata:  corpus specific: 0, document level (indexed): 0
-    ## Content:  documents: 203482
+    ## Content:  documents: 12001
 
 ``` r
-text_dtm <- DocumentTermMatrix(text_corpus, control = list(
- tolower = TRUE,
- removeNumbers= TRUE,
- stopwords=TRUE,
-removePunctuation= TRUE,
-stemming =TRUE )) 
+#cleaning tweets 
+text_corpus_clean<-tm_map(text_corpus,content_transformer(tolower))
 
-#removeURL <- function(x) gsub("http[[:alnum:]]*", "", x)
-#text_dtm<- tm_map(text_dtm, removeURL)
+text_corpus_clean<-tm_map(text_corpus_clean,removeNumbers)
+
+text_corpus_clean<-tm_map(text_corpus_clean,removeWords,stopwords())
+
+text_corpus_clean<-tm_map(text_corpus_clean,removePunctuation)
+
+                                                    text_corpus_clean<-tm_map(text_corpus_clean,stemDocument)
+                                                                                                         
+text_corpus_clean<-tm_map(text_corpus_clean,stripWhitespace)
+
+
+#Tokenize the data
+text_dtm <-DocumentTermMatrix(text_corpus_clean,control =
+                                list(wordLengths=c(0,Inf)))
+```
+
+We separate the data into a training set and a test set. Then create the labels for the two sets.
+
+``` r
+text_dtm_train<- text_dtm[1:10000,]
+text_dtm_test<- text_dtm[10001:12000,]
+
+
+text_train_labels<- tot_tweets[1:10000,]$r_nr
+text_test_labels<- tot_tweets[10001:12000,]$r_nr
+```
+
+We can now create three word clouds. The first wordcloud shows all of the data together. The second cloud show just the russian troll texts. The third is no Russian trolls at all.
+
+``` r
+#Overall word graph
+wordcloud(text_corpus_clean, min.freq = 100,scale=c(2,.5),random.order = FALSE)
+```
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-1.png)
+
+``` r
+#Russian troll graph
+rus<-subset(tot_tweets,r_nr=="r")
+norus<-subset(tot_tweets,r_nr=="nr")
+
+wordcloud(rus$text, max.words = 40,scale = c(3,.5))
+```
+
+    ## Warning in tm_map.SimpleCorpus(corpus, tm::removePunctuation):
+    ## transformation drops documents
+
+    ## Warning in tm_map.SimpleCorpus(corpus, function(x) tm::removeWords(x,
+    ## tm::stopwords())): transformation drops documents
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-2.png)
+
+``` r
+#no russian trolls graph
+wordcloud(norus$text, max.words = 40, scale = c(3,.5))
+```
+
+    ## Warning in tm_map.SimpleCorpus(corpus, tm::removePunctuation):
+    ## transformation drops documents
+
+    ## Warning in tm_map.SimpleCorpus(corpus, tm::removePunctuation):
+    ## transformation drops documents
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-3.png)
+
+``` r
+#number of frequent terms. frenquency filter of words used less than 5 times
+tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
+ 
+ str(tweet_freq_words)
+```
+
+    ##  chr [1:2590] "â–¶" "â€¦" "â€˜" "â€“" "â€œ" "â«" "â»" "aâ€¦" "abc" ...
+
+``` r
+#create DTM
+ 
+tweet_dtm_freq_train<- text_dtm_train[ , tweet_freq_words]
+tweet_dtm_freq_test <- text_dtm_test[ , tweet_freq_words]
+
+#Function for Change to categorical classifier, then apply to the columns
+ convert_counts <- function(x) {
+ x <- ifelse(x > 0, "Yes", "No")
+ }
+
+tweet_train <- apply(tweet_dtm_freq_train, MARGIN = 2,
+ convert_counts)
+tweet_test <- apply(tweet_dtm_freq_test, MARGIN = 2,
+ convert_counts)
+  
+tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
 ```
 
 ``` r
-text_dtm_train<- text_dtm[1:152600,]
-text_dtm_test<- text_dtm[152601:203482,]
+ tweet_test_pred <- predict(tweet_classifier, tweet_test)
+
+
+ CrossTable(tweet_test_pred, text_test_labels,
+ prop.chisq = FALSE, prop.t = FALSE,
+ dnn = c('predicted', 'actual'))
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+    ## 
+    ##  
+    ##    Cell Contents
+    ## |-------------------------|
+    ## |                       N |
+    ## |           N / Row Total |
+    ## |           N / Col Total |
+    ## |-------------------------|
+    ## 
+    ##  
+    ## Total Observations in Table:  2000 
+    ## 
+    ##  
+    ##              | actual 
+    ##    predicted |         r |        nr | Row Total | 
+    ## -------------|-----------|-----------|-----------|
+    ##            r |       894 |        23 |       917 | 
+    ##              |     0.975 |     0.025 |     0.459 | 
+    ##              |     0.902 |     0.023 |           | 
+    ## -------------|-----------|-----------|-----------|
+    ##           nr |        97 |       986 |      1083 | 
+    ##              |     0.090 |     0.910 |     0.541 | 
+    ##              |     0.098 |     0.977 |           | 
+    ## -------------|-----------|-----------|-----------|
+    ## Column Total |       991 |      1009 |      2000 | 
+    ##              |     0.495 |     0.504 |           | 
+    ## -------------|-----------|-----------|-----------|
+    ## 
+    ## 
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+``` r
+#create ROC for Naive Bayes
+troc<-predict(tweet_classifier,tweet_test, type = "raw")
+predt<- prediction(troc[,"nr"],text_test_labels)
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+#calculate the area
+auc<-performance(predt,"auc")
+
+
+perf_r<- performance(predt, measure ='tpr',x.measure='fpr')
+plot(perf_r,colorize=T)
+```
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+``` r
+print(auc)
+```
+
+    ## An object of class "performance"
+    ## Slot "x.name":
+    ## [1] "None"
+    ## 
+    ## Slot "y.name":
+    ## [1] "Area under the ROC curve"
+    ## 
+    ## Slot "alpha.name":
+    ## [1] "none"
+    ## 
+    ## Slot "x.values":
+    ## list()
+    ## 
+    ## Slot "y.values":
+    ## [[1]]
+    ## [1] 0.9781447
+    ## 
+    ## 
+    ## Slot "alpha.values":
+    ## list()
+
+``` r
+library(caret)
+```
+
+    ## Warning: package 'caret' was built under R version 3.4.4
+
+    ## Loading required package: lattice
+
+``` r
+ #logistic Regression
+
+sparse_dtm<-removeSparseTerms(text_dtm, 0.99) #terms appear in more than 1% of tweets
+
+#new Data frame
+tweetsSparse<-as.data.frame(as.matrix(sparse_dtm))
+colnames(tweetsSparse)<-make.names(colnames(tweetsSparse))
+tweetsSparse$r_nr<-tot_tweets$r_nr
+
+#split the data set
+set.seed(200)
+
+split<- sample.split(tweetsSparse,SplitRatio=2/3)
+
+trainSparse<- subset(tweetsSparse, split=="TRUE")#in split 
+testSparse<- subset(tweetsSparse, split=="FALSE")#not in split
+
+tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
+```
+
+    ## Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
+
+``` r
+tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testSparse)
+
+
+cmatrix_logregr<-table(testSparse$r_nr, tweet.logit.test>0.5)
+
+cmatrix_logregr
+```
+
+    ##     
+    ##      FALSE TRUE
+    ##   r   1723  340
+    ##   nr    31 1992
+
+``` r
+tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
+cmatrix1 <-table(trainSparse$r_nr,tweet.logit.test1>0.5)
+
+cmatrix1
+```
+
+    ##     
+    ##      FALSE TRUE
+    ##   r   3255  682
+    ##   nr    38 3939
+
+``` r
+#Descision tree
+library(rpart)
+```
+
+    ## Warning: package 'rpart' was built under R version 3.4.4
+
+``` r
+library(rpart.plot)
+```
+
+    ## Warning: package 'rpart.plot' was built under R version 3.4.4
+
+``` r
+tweetCART <- rpart(r_nr ~ . , data = trainSparse, method = "class")
+prp(tweetCART)
+```
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-10-1.png)
+
+If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
+
+Overall Naive Bayes return the most promising results for filtering tweets against a wide range of tweets.

@@ -1,17 +1,19 @@
 ---
-title: "R Notebook"
+title: "Russian Twitter Trolls"
 output: github_document
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
 Context
-As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
 
-For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."
+After extensive government investigations, it was determined that Russia and Iran tried to influence the U.S. 2016 presidential elections through social media platforms. To work the government in a constructive manner and keep its platform in a positive public light, Twitter made more than ten million foreign troll’s tweets available for research. A team at NBC News reconstructed a dataset of 200,000 Russian troll tweets and made it available on Kaggle. Their research showed these troll accounts were extremely active during key moments around the election. 
+This project is attempting to determine which tweets are Russian troll tweets and which are not Russian troll tweets. It will be based on three predictive models, Naïve Bayes, logistic regression, and random forest.  Then we will determine which predictive model is most effective when filtering the Russian troll tweets. This could be one of many possible filtering algorithms to help Twitter in identifying fake accounts of Russian or even Iranian trolls. There are two major reasons for Twitter to identify fake accounts: rebuilding public trust in their platform, and influence in the government’s creation of legislation regulating social media.       
+
+
+For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets."[NBC Russian Tweets]( https://www.nbcnews.com/tech/social-media/now-available-more-200-000-deleted-russian-troll-tweets-n844731)
 
 Content
-This dataset contains two CSV files. tweets.csv includes details on individual tweets, while users.csv includes details on individual accounts.
+This dataset contains two CSV files. tweets.csv includes details on individual tweets from known Russain troll accounts,and noemoticon.csv file that is pre-russain trolls(2009).
 
 To recreate a link to an individual tweet found in the dataset, replace user_key in https://twitter.com/user_key/status/tweet_id with the screen-name from the user_key field and tweet_id with the number in the tweet_id field.
 
@@ -20,18 +22,23 @@ Following the links will lead to a suspended page on Twitter. But some copies of
 Acknowledgements
 If you publish using the data, please credit NBC News and include a link to this page. Send questions to ben.popken@nbcuni.com. 
 
+THIS Project
+
+In this mark down, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.    
+
 ```{r}
- library(e1071)
-library(SnowballC)
+library(ROCR)
+library(caTools)# ROC, AUC
+library(e1071) #  Naive Bayes 
+library(SnowballC) # stemming
 library(gmodels)
-library(rtweet)
-library(twitteR)
 library(tidytext)
 library(dplyr)
 library(ggplot2)
 library(wordcloud)
 library(tidyr)
-library(tm)
+library(tm) # text data
+library(effects) # regession models
 
 #nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
 #rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
@@ -46,13 +53,13 @@ library(tm)
 
 ```
 
-
+Because the CSV files were so large, two Rdata files were created. This helped with a shorter run time and committing to Github.
 
 ```{r}
 
+load("savednt.RData")
 
 load("savedrt.RData")
-load("savednt.RData")
 
 #renameing Features
 created_str <-as.Date(rt$created_str)
@@ -60,29 +67,30 @@ text<- as.character(rt$text)
 colnames(nt)[6]<- as.character(c("text"))
 colnames(nt)[3]<- "created_str"
 
-#created_str<-as.Date(nt$created_str)
+#extracting columns
+rtext<-select(rt,"text")
+ntext<-select(nt,"text")
+
 
 #adding a column Russian tweets
-rt$r_nr<-"r"
+rtext$r_nr<-"r"
 
 #adding column to non_russian tweets
-nt$r_nr<-"nr"
-
+ntext$r_nr<-"nr"
 
 ```
 
 ```{r}
 
-#combining data sets
+#combining data sets, sample function randomizes order of rows
 
-
-tot_tweets<- full_join(nt,rt)
+tot_tweets<- rbind(ntext,rtext,stringAsfactors=FALSE)
 tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 
 #change character to factor
-tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=TRUE)
+tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=FALSE)
 
-  
+#creating a corpus for the twitter text
 text_corpus<- VCorpus(VectorSource(tot_tweets$text))
 print(text_corpus)
 
@@ -99,21 +107,28 @@ text_corpus_clean<-tm_map(text_corpus_clean,removePunctuation)
                                                                                                          
 text_corpus_clean<-tm_map(text_corpus_clean,stripWhitespace)
 
+
+#Tokenize the data
 text_dtm <-DocumentTermMatrix(text_corpus_clean,control =
                                 list(wordLengths=c(0,Inf)))
 
 
 ```
+
+We separate the data into a training set and a test set. Then create the labels for the two sets. 
 ```{r}
 text_dtm_train<- text_dtm[1:10000,]
-text_dtm_test<- text_dtm[10000:12000,]
+text_dtm_test<- text_dtm[10001:12000,]
 
 
 text_train_labels<- tot_tweets[1:10000,]$r_nr
-text_test_labels<- tot_tweets[10000:12000,]$r_nr
+text_test_labels<- tot_tweets[10001:12000,]$r_nr
 
 
 ```
+
+
+We can now create three word clouds. The first wordcloud shows all of the data together. The second cloud show just the russian troll texts. The third is no Russian trolls at all.
 ```{r}
 #Overall word graph
 wordcloud(text_corpus_clean, min.freq = 100,scale=c(2,.5),random.order = FALSE)
@@ -127,17 +142,19 @@ wordcloud(rus$text, max.words = 40,scale = c(3,.5))
 #no russian trolls graph
 wordcloud(norus$text, max.words = 40, scale = c(3,.5))
 ```
+
 ```{r}
-#number of frequent terms
-tweet_freq_words <- findFreqTerms(text_dtm_train, 10)
+#number of frequent terms. frenquency filter of words used less than 20 times
+tweet_freq_words <- findFreqTerms(text_dtm_train, 20)
  
  str(tweet_freq_words)
  
-#DTM
+#create DTM
  
 tweet_dtm_freq_train<- text_dtm_train[ , tweet_freq_words]
 tweet_dtm_freq_test <- text_dtm_test[ , tweet_freq_words]
 
+#Function for Change to categorical classifier, then apply to the columns
  convert_counts <- function(x) {
  x <- ifelse(x > 0, "Yes", "No")
  }
@@ -149,17 +166,118 @@ tweet_test <- apply(tweet_dtm_freq_test, MARGIN = 2,
   
 tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
 ```
-```{r}
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
  tweet_test_pred <- predict(tweet_classifier, tweet_test)
 
 
  CrossTable(tweet_test_pred, text_test_labels,
  prop.chisq = FALSE, prop.t = FALSE,
  dnn = c('predicted', 'actual'))
+
+ 
+```
+```{r}
+
+#create ROC for Naive Bayes
+troc<-predict(tweet_classifier,tweet_test, type = "raw")
+predt<- prediction(troc[,"r"],text_test_labels)
+
+
+
+#calculate the area
+auc<-performance(predt,"auc")
+
+
+perf_r<- performance(predt, measure ='tpr',x.measure='fpr')
+plot(perf_r,colorize=T,main="Naive Bayes")
+    
+print(auc)
+
+
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+```{r echo=TRUE}
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+library(caret)
+library(safeBinaryRegression)
+library(glmnet)
+library(Matrix)
+ #logistic Regression
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+sparse_dtm<-removeSparseTerms(text_dtm, 0.995) #terms appear in more than .5% of tweets or 230 
+
+#new Data frame
+tweetsSparse<-as.data.frame(as.matrix(sparse_dtm))
+colnames(tweetsSparse)<-make.names(colnames(tweetsSparse))
+tweetsSparse$r_nr<-tot_tweets$r_nr
+
+#split the data set
+
+trainSparse<- tweetsSparse[1:9000,]
+testS<- tweetsSparse[9001:12000,]
+
+#y<-trainSparse[1:8999,"r_nr"]
+#x<-as.matrix(r_nr~.,data=trainSparse)
+#tweet.logit <-glmnet(x,y, family = "binomial")
+
+tweet.logit<- glm(r_nr~.,trainSparse, family = "binomial")
+
+tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
+
+
+cmatrix_logregr<-table(testS$r_nr, tweet.logit.test>0.5)
+
+cmatrix_logregr
+
+tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
+cmatrix1 <-table(trainSparse$r_nr,tweet.logit.test1>0.5)
+
+cmatrix1
+
+#create ROC for Logistic Regression
+testSparse$r_nr<-factor(testS$r_nr,levels =c(0,1))
+troc2<-prediction(tweet.logit.test,testS$r_nr)
+
+perf_r2<- performance(troc2, measure ='tpr',x.measure='fpr')
+plot(perf_r2,colorize=T, main="Logistic Regression")
+
+#calculate the area under the ROC
+auc2<-performance(troc2,measure = "auc")
+
+
+print(auc2)
+
+
+```
+```{r}
+#Descision Tree
+library(rpart)
+library(rpart.plot)
+tweetcart<- rpart(r_nr~.,data = trainSparse, method = "class")
+prp(tweetcart)
+
+predtcart<-predict(tweetcart,newdata=testS,type = "class")
+cartable<-table(testS$r_nr,predtcart)
+
+
+print(cartable)
+
+#Random Forest
+library(randomForest)
+russianForest<- randomForest(r_nr~.,data=trainSparse,nodesize=25,ntrees=200,na.action=na.roughfix)
+predictForest<-predict(russianForest, newdata=testS)
+
+table(testS$r_nr,predictForest)
+
+#random forest ROC
+rfroc<-prediction(as.numeric(predictForest),as.numeric(testS$r_nr))
+perf_3<- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
+plot(perf_3, colorize =T, main= "Random Forest")
+
+```
+
+
+If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
+
+Overall Naive Bayes return the most promising results for filtering tweets against a wide range of tweets. 
