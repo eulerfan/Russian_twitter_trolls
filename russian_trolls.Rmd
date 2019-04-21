@@ -221,10 +221,7 @@ tweetsSparse$r_nr<-tot_tweets$r_nr
 trainSparse<- tweetsSparse[1:9000,]
 testS<- tweetsSparse[9001:12000,]
 
-#y<-trainSparse[!is.na(trainSparse)]
-#x<-model.matrix(r_nr~.,data=trainSparse)[-6510,]
-#tweet.logit <-glmnet(x,y, family = "binomial")
-
+#logistic regression model
 tweet.logit<- glm2(r_nr~.,trainSparse, family = "binomial")
 
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
@@ -246,7 +243,7 @@ troc2<-roc(testS$r_nr~tweet.logit.test)
 plot(troc2)
 
 #calculate the area under the ROC
-auc2<-performance(troc2,measure = "auc")
+auc2<-auc(troc2)
 
 
 print(auc2)

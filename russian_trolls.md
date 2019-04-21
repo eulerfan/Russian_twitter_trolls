@@ -3,11 +3,11 @@ Russian Twitter Trolls
 
 Context
 
-As part of the House Intelligence Committee investigation into how Russia may have influenced the 2016 US Election, Twitter released the screen names of almost 3000 Twitter accounts believed to be connected to Russia’s Internet Research Agency, a company known for operating social media troll accounts. Twitter immediately suspended these accounts, deleting their data from Twitter.com and the Twitter API. A team at NBC News including Ben Popken and EJ Fox was able to reconstruct a dataset consisting of a subset of the deleted data for their investigation and were able to show how these troll accounts went on attack during key election moments. This dataset is the body of this open-sourced reconstruction.
+After extensive government investigations, it was determined that Russia and Iran tried to influence the U.S. 2016 presidential elections through social media platforms. To work the government in a constructive manner and keep its platform in a positive public light, Twitter made more than ten million foreign troll’s tweets available for research. A team at NBC News reconstructed a dataset of 200,000 Russian troll tweets and made it available on Kaggle. Their research showed these troll accounts were extremely active during key moments around the election. This project is attempting to determine which tweets are Russian troll tweets and which are not Russian troll tweets. It will be based on three predictive models, Naïve Bayes, logistic regression, and random forest. Then we will determine which predictive model is most effective when filtering the Russian troll tweets. This could be one of many possible filtering algorithms to help Twitter in identifying fake accounts of Russian or even Iranian trolls. There are two major reasons for Twitter to identify fake accounts: rebuilding public trust in their platform, and influence in the government’s creation of legislation regulating social media.
 
-For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets. Read them here."[NBC Russian Tweets](https://www.nbcnews.com/tech/social-media/now-available-more-200-000-deleted-russian-troll-tweets-n844731)
+For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets."[NBC Russian Tweets](https://www.nbcnews.com/tech/social-media/now-available-more-200-000-deleted-russian-troll-tweets-n844731)
 
-Content This dataset contains two CSV files. tweets.csv includes details on individual tweets, while users.csv includes details on individual accounts.
+Content This dataset contains two CSV files. tweets.csv includes details on individual tweets from known Russain troll accounts,and noemoticon.csv file that is pre-russain trolls(2009).
 
 To recreate a link to an individual tweet found in the dataset, replace user\_key in <https://twitter.com/user_key/status/tweet_id> with the screen-name from the user\_key field and tweet\_id with the number in the tweet\_id field.
 
@@ -129,7 +129,12 @@ library(tm) # text data
 
 ``` r
 library(effects) # regession models
+library(glm2)
+```
 
+    ## Warning: package 'glm2' was built under R version 3.4.4
+
+``` r
 #nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
 #rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
 
@@ -173,7 +178,7 @@ tot_tweets<- rbind(ntext,rtext,stringAsfactors=FALSE)
 tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 
 #change character to factor
-tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=TRUE)
+tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=FALSE)
 
 #creating a corpus for the twitter text
 text_corpus<- VCorpus(VectorSource(tot_tweets$text))
@@ -254,13 +259,13 @@ wordcloud(norus$text, max.words = 40, scale = c(3,.5))
 ![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-3.png)
 
 ``` r
-#number of frequent terms. frenquency filter of words used less than 5 times
-tweet_freq_words <- findFreqTerms(text_dtm_train, 5)
+#number of frequent terms. frenquency filter of words used less than 20 times
+tweet_freq_words <- findFreqTerms(text_dtm_train, 20)
  
  str(tweet_freq_words)
 ```
 
-    ##  chr [1:2590] "â–¶" "â€¦" "â€˜" "â€“" "â€œ" "â«" "â»" "aâ€¦" "abc" ...
+    ##  chr [1:660] "â€¦" "â€˜" "â€“" "â€œ" "abl" "accept" "account" "accus" ...
 
 ``` r
 #create DTM
@@ -306,16 +311,16 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
     ##              | actual 
     ##    predicted |         r |        nr | Row Total | 
     ## -------------|-----------|-----------|-----------|
-    ##            r |       894 |        23 |       917 | 
-    ##              |     0.975 |     0.025 |     0.459 | 
-    ##              |     0.902 |     0.023 |           | 
+    ##            r |       875 |        20 |       895 | 
+    ##              |     0.978 |     0.022 |     0.448 | 
+    ##              |     0.881 |     0.020 |           | 
     ## -------------|-----------|-----------|-----------|
-    ##           nr |        97 |       986 |      1083 | 
-    ##              |     0.090 |     0.910 |     0.541 | 
-    ##              |     0.098 |     0.977 |           | 
+    ##           nr |       118 |       987 |      1105 | 
+    ##              |     0.107 |     0.893 |     0.552 | 
+    ##              |     0.119 |     0.980 |           | 
     ## -------------|-----------|-----------|-----------|
-    ## Column Total |       991 |      1009 |      2000 | 
-    ##              |     0.495 |     0.504 |           | 
+    ## Column Total |       993 |      1007 |      2000 | 
+    ##              |     0.496 |     0.503 |           | 
     ## -------------|-----------|-----------|-----------|
     ## 
     ## 
@@ -323,14 +328,16 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
 ``` r
 #create ROC for Naive Bayes
 troc<-predict(tweet_classifier,tweet_test, type = "raw")
-predt<- prediction(troc[,"nr"],text_test_labels)
+predt<- prediction(troc[,"r"],text_test_labels)
+
+
 
 #calculate the area
 auc<-performance(predt,"auc")
 
 
 perf_r<- performance(predt, measure ='tpr',x.measure='fpr')
-plot(perf_r,colorize=T)
+plot(perf_r,colorize=T,main="Naive Bayes")
 ```
 
 ![](russian_trolls_files/figure-markdown_github/unnamed-chunk-8-1.png)
@@ -354,7 +361,7 @@ print(auc)
     ## 
     ## Slot "y.values":
     ## [[1]]
-    ## [1] 0.9781447
+    ## [1] 0.9764028
     ## 
     ## 
     ## Slot "alpha.values":
@@ -369,9 +376,71 @@ library(caret)
     ## Loading required package: lattice
 
 ``` r
+library(safeBinaryRegression)
+```
+
+    ## Warning: package 'safeBinaryRegression' was built under R version 3.4.4
+
+    ## Loading required package: lpSolveAPI
+
+    ## Warning: package 'lpSolveAPI' was built under R version 3.4.4
+
+    ## 
+    ## Attaching package: 'safeBinaryRegression'
+
+    ## The following object is masked from 'package:stats':
+    ## 
+    ##     glm
+
+``` r
+library(glmnet)
+```
+
+    ## Warning: package 'glmnet' was built under R version 3.4.4
+
+    ## Loading required package: Matrix
+
+    ## 
+    ## Attaching package: 'Matrix'
+
+    ## The following object is masked from 'package:tidyr':
+    ## 
+    ##     expand
+
+    ## Loading required package: foreach
+
+    ## Warning: package 'foreach' was built under R version 3.4.4
+
+    ## Loaded glmnet 2.0-16
+
+``` r
+library(Matrix)
+library(pROC)
+```
+
+    ## Warning: package 'pROC' was built under R version 3.4.4
+
+    ## Type 'citation("pROC")' for a citation.
+
+    ## 
+    ## Attaching package: 'pROC'
+
+    ## The following object is masked from 'package:glmnet':
+    ## 
+    ##     auc
+
+    ## The following object is masked from 'package:gmodels':
+    ## 
+    ##     ci
+
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     cov, smooth, var
+
+``` r
  #logistic Regression
 
-sparse_dtm<-removeSparseTerms(text_dtm, 0.99) #terms appear in more than 1% of tweets
+sparse_dtm<-removeSparseTerms(text_dtm, 0.995) #terms appear in more than .5% of tweets or 230 
 
 #new Data frame
 tweetsSparse<-as.data.frame(as.matrix(sparse_dtm))
@@ -379,31 +448,29 @@ colnames(tweetsSparse)<-make.names(colnames(tweetsSparse))
 tweetsSparse$r_nr<-tot_tweets$r_nr
 
 #split the data set
-set.seed(200)
 
-split<- sample.split(tweetsSparse,SplitRatio=2/3)
+trainSparse<- tweetsSparse[1:9000,]
+testS<- tweetsSparse[9001:12000,]
 
-trainSparse<- subset(tweetsSparse, split=="TRUE")#in split 
-testSparse<- subset(tweetsSparse, split=="FALSE")#not in split
-
-tweet.logit <- glm(r_nr ~ ., data = trainSparse, family = "binomial")
+#logistic regression model
+tweet.logit<- glm2(r_nr~.,trainSparse, family = "binomial")
 ```
 
-    ## Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
+    ## Warning: glm.fit2: fitted probabilities numerically 0 or 1 occurred
 
 ``` r
-tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testSparse)
+tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
 
 
-cmatrix_logregr<-table(testSparse$r_nr, tweet.logit.test>0.5)
+cmatrix_logregr<-table(testS$r_nr, tweet.logit.test>0.5)
 
 cmatrix_logregr
 ```
 
     ##     
     ##      FALSE TRUE
-    ##   r   1723  340
-    ##   nr    31 1992
+    ##   r   1286  217
+    ##   nr    33 1464
 
 ``` r
 tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
@@ -414,11 +481,31 @@ cmatrix1
 
     ##     
     ##      FALSE TRUE
-    ##   r   3255  682
-    ##   nr    38 3939
+    ##   r   3921  576
+    ##   nr    71 4431
 
 ``` r
-#Descision tree
+#create ROC for Logistic Regression
+
+troc2<-roc(testS$r_nr~tweet.logit.test)
+
+plot(troc2)
+```
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-9-1.png)
+
+``` r
+#calculate the area under the ROC
+auc2<-auc(troc2)
+
+
+print(auc2)
+```
+
+    ## Area under the curve: 0.9686
+
+``` r
+#Descision Tree
 library(rpart)
 ```
 
@@ -431,11 +518,67 @@ library(rpart.plot)
     ## Warning: package 'rpart.plot' was built under R version 3.4.4
 
 ``` r
-tweetCART <- rpart(r_nr ~ . , data = trainSparse, method = "class")
-prp(tweetCART)
+tweetcart<- rpart(r_nr~.,data = trainSparse, method = "class")
+prp(tweetcart)
 ```
 
 ![](russian_trolls_files/figure-markdown_github/unnamed-chunk-10-1.png)
+
+``` r
+predtcart<-predict(tweetcart,newdata=testS,type = "class")
+cartable<-table(testS$r_nr,predtcart)
+
+
+print(cartable)
+```
+
+    ##     predtcart
+    ##         r   nr
+    ##   r  1194  309
+    ##   nr    2 1495
+
+``` r
+#Random Forest
+library(randomForest)
+```
+
+    ## Warning: package 'randomForest' was built under R version 3.4.4
+
+    ## randomForest 4.6-14
+
+    ## Type rfNews() to see new features/changes/bug fixes.
+
+    ## 
+    ## Attaching package: 'randomForest'
+
+    ## The following object is masked from 'package:ggplot2':
+    ## 
+    ##     margin
+
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     combine
+
+``` r
+russianForest<- randomForest(r_nr~.,data=trainSparse,nodesize=25,ntrees=200,na.action=na.roughfix)
+predictForest<-predict(russianForest, newdata=testS)
+
+table(testS$r_nr,predictForest)
+```
+
+    ##     predictForest
+    ##         r   nr
+    ##   r  1285  218
+    ##   nr   44 1453
+
+``` r
+#random forest ROC
+rfroc<-prediction(as.numeric(predictForest),as.numeric(testS$r_nr))
+perf_3<- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
+plot(perf_3, colorize =T, main= "Random Forest")
+```
+
+![](russian_trolls_files/figure-markdown_github/unnamed-chunk-10-2.png)
 
 If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
 
