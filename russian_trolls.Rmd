@@ -256,7 +256,7 @@ print(auc2)
 #Descision Tree
 library(rpart)
 library(rpart.plot)
-library(C50)
+library(e1071)
 library(irr)
 
 tweetcart<- rpart(r_nr~.,data = trainSparse, method = "class")
@@ -267,20 +267,27 @@ cartable<-table(testS$r_nr,predtcart)
 
 #cross-validation
 
-set.seed(123)
-folds <- createFolds(tweetsSparse$r_nr, k = 10)
+tr.control<- trainControl(method="cv",number=5)
+cp.grid<-expand.grid(.cp= (0:5)*0.001)
+tr<-train(r_nr~.,data = tweetsSparse, method="rpart", trControl=tr.control,tuneGrid=cp.grid, na.action = na.omit )
 
- cv_results <- lapply(folds, function(x) {
- russ_train <- tweetsSparse[-x, ]
- russ_test <- tweetsSparse[x, ]
- russ_model <- C5.0(r_nr ~ ., data = russ_train)
- russ_pred <- predict(russ_model, russ_test)
- russ_actual <- russ_test$r_nr
- kappa <- kappa2(data.frame(russ_actual, russ_pred))$value
- return(kappa)
- })
+best.tree<-tr$finalModel
+prp(best.tree)
 
- mean(unlist(cv_results))
+#set.seed(123)
+#folds <- createFolds(tweetsSparse$r_nr, k = 5)
+
+# cv_results <- lapply(folds, function(x) {
+# russ_train <- tweetsSparse[-x, ]
+ #russ_test <- tweetsSparse[x, ]
+# russ_model <- C5.0(r_nr ~ ., data = russ_train)
+ #russ_pred <- predict(tweetcart, russ_test)
+ #russ_actual <- russ_test$r_nr
+ #kappa <- kappam.light(data.frame(russ_actual, russ_pred))$value
+ #return(kappa)
+ #})
+
+ #mean(unlist(cv_results))
  
 ```
 
@@ -299,7 +306,6 @@ rfroc<-prediction(as.numeric(predictForest),as.numeric(testS$r_nr))
 perf_3<- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
 plot(perf_3, colorize =T, main= "Random Forest")
 
-#cross-validation
 
 
 ```
