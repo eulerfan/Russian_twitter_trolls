@@ -6,15 +6,17 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Context
+## Background
 
-After extensive government investigations, it was determined that Russia and Iran tried to influence the U.S. 2016 presidential elections through social media platforms. To work the government in a constructive manner and keep its platform in a positive public light, Twitter made more than ten million foreign troll’s tweets available for research. A team at NBC News reconstructed a dataset of 200,000 Russian troll tweets and made it available on Kaggle. Their research showed these troll accounts were extremely active during key moments around the election. 
-This project is attempting to determine which tweets are Russian troll tweets and which are not Russian troll tweets. It will be based on three predictive models, Naïve Bayes, logistic regression, and random forest.  Then we will determine which predictive model is most effective when filtering the Russian troll tweets. This could be one of many possible filtering algorithms to help Twitter in identifying fake accounts of Russian or even Iranian trolls. There are two major reasons for Twitter to identify fake accounts: rebuilding public trust in their platform, and influence in the government’s creation of legislation regulating social media.       
+After extensive government investigations, it was determined that Russia and Iran tried to influence the U.S. 2016 presidential elections through social media platforms. To work with the government in a constructive manner and keep its platform in a positive public light, Twitter made more than ten million foreign troll’s tweets available for research. A team at NBC News reconstructed a dataset of 200,000 Russian troll tweets and made it available on Kaggle. Their research showed these troll accounts were extremely active during key moments around the election. 
+This project is attempting to determine which tweets are Russian troll tweets and which are not Russian troll tweets. It will be based on three predictive models, Naïve Bayes, Logistic Regression, and Random Forest.  Then we will determine which predictive model is most effective when filtering the Russian troll tweets. This could be one of many possible filtering algorithms to help Twitter in identifying fake accounts of Russian or even Iranian trolls. There are two major reasons for Twitter to identify fake accounts: 
 
+1. Rebuilding public trust in their platform, and
+2. influence the government’s legislation regulating social media
 
 For more background, read the NBC news article publicizing the release: "Twitter deleted 200,000 Russian troll tweets."[NBC Russian Tweets]( https://www.nbcnews.com/tech/social-media/now-available-more-200-000-deleted-russian-troll-tweets-n844731)
 
-Content
+## Content
 This dataset contains two CSV files. tweets.csv includes details on individual tweets from known Russain troll accounts,and noemoticon.csv file that is pre-russain trolls(2009).
 
 To recreate a link to an individual tweet found in the dataset, replace user_key in https://twitter.com/user_key/status/tweet_id with the screen-name from the user_key field and tweet_id with the number in the tweet_id field.
@@ -24,9 +26,9 @@ Following the links will lead to a suspended page on Twitter. But some copies of
 Acknowledgements
 If you publish using the data, please credit NBC News and include a link to this page. Send questions to ben.popken@nbcuni.com. 
 
-THIS Project
+## This Project
 
-In this mark down, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.    
+In this markdown document, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.    
 
 ```{r}
 library(ROCR)
@@ -42,6 +44,7 @@ library(tidyr)
 library(tm) # text data
 library(effects) # regession models
 library(glm2)
+
 
 #nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
 #rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
@@ -64,56 +67,61 @@ load("savednt.RData")
 
 load("savedrt.RData")
 
-#renameing Features
-created_str <-as.Date(rt$created_str)
-text<- as.character(rt$text)
-colnames(nt)[6]<- as.character(c("text"))
-colnames(nt)[3]<- "created_str"
+#renaming Features
+created_str <- as.Date(rt$created_str)
+text <- as.character(rt$text)
+colnames(nt)[6] <- as.character(c("text"))
+colnames(nt)[3] <- "created_str"
 
 #extracting columns
-rtext<-select(rt,"text")
-ntext<-select(nt,"text")
+rtext <- select(rt,"text")
+ntext <- select(nt,"text")
 
 
 #adding a column Russian tweets
-rtext$r_nr<-"r"
+rtext$r_nr <- "r"
 
 #adding column to non_russian tweets
-ntext$r_nr<-"nr"
+ntext$r_nr <- "nr"
 
+
+str(rt)
+str(nt)
 ```
+
+The output is two data frames: rtext and ntext. each with 6k tweets and each are labeled
 
 ```{r}
 
 #combining data sets, sample function randomizes order of rows
 
-tot_tweets<- rbind(ntext,rtext,stringAsfactors=FALSE)
+tot_tweets <- rbind(ntext,rtext,stringAsfactors = FALSE)
 tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 
 #change character to factor
-tot_tweets$r_nr<-factor(tot_tweets$r_nr, levels=c("r","nr"),ordered=FALSE)
+tot_tweets$r_nr <- factor(tot_tweets$r_nr, levels = c("r","nr"),ordered = FALSE)
 
 #creating a corpus for the twitter text
-text_corpus<- VCorpus(VectorSource(tot_tweets$text))
+text_corpus <- VCorpus(VectorSource(tot_tweets$text))
 print(text_corpus)
 
 #cleaning tweets 
-text_corpus_clean<-tm_map(text_corpus,content_transformer(tolower))
+text_corpus_clean <- tm_map(text_corpus,content_transformer(tolower))
 
-text_corpus_clean<-tm_map(text_corpus_clean,removeNumbers)
+text_corpus_clean <- tm_map(text_corpus_clean,removeNumbers)
 
-text_corpus_clean<-tm_map(text_corpus_clean,removeWords,stopwords())
+text_corpus_clean <- tm_map(text_corpus_clean,removeWords,stopwords())
 
-text_corpus_clean<-tm_map(text_corpus_clean,removePunctuation)
+text_corpus_clean <- tm_map(text_corpus_clean,removePunctuation)
 
-                                                    text_corpus_clean<-tm_map(text_corpus_clean,stemDocument)
+text_corpus_clean <- tm_map(text_corpus_clean,stemDocument)
                                                                                                          
-text_corpus_clean<-tm_map(text_corpus_clean,stripWhitespace)
+text_corpus_clean <- tm_map(text_corpus_clean,stripWhitespace)
 
 
 #Tokenize the data
-text_dtm <-DocumentTermMatrix(text_corpus_clean,control =
-                                list(wordLengths=c(0,Inf)))
+text_dtm <- DocumentTermMatrix(text_corpus_clean,control =
+                                list(wordLengths = c(0,Inf)))
 
 
 ```
@@ -265,15 +273,15 @@ print(cartable)
 
 #Random Forest
 library(randomForest)
-russianForest<- randomForest(r_nr~.,data=trainSparse,nodesize=25,ntrees=200,na.action=na.roughfix)
-predictForest<-predict(russianForest, newdata=testS)
+russianForest <- randomForest(r_nr~.,data = trainSparse,nodesize = 25,ntrees = 200,na.action = na.roughfix)
+predictForest <- predict(russianForest, newdata = testS)
 
 table(testS$r_nr,predictForest)
 
 #random forest ROC
-rfroc<-prediction(as.numeric(predictForest),as.numeric(testS$r_nr))
-perf_3<- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
-plot(perf_3, colorize =T, main= "Random Forest")
+rfroc <- prediction(as.numeric(predictForest),as.numeric(testS$r_nr))
+perf_3 <- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
+plot(perf_3, colorize = T, main = "Random Forest")
 
 ```
 
