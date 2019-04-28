@@ -224,6 +224,8 @@ testS<- tweetsSparse[9001:12000,]
 #logistic regression model
 tweet.logit<- glm2(r_nr~.,trainSparse, family = "binomial")
 
+
+
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
 
 
@@ -254,13 +256,35 @@ print(auc2)
 #Descision Tree
 library(rpart)
 library(rpart.plot)
+library(C50)
+library(irr)
+
 tweetcart<- rpart(r_nr~.,data = trainSparse, method = "class")
 prp(tweetcart)
 
 predtcart<-predict(tweetcart,newdata=testS,type = "class")
 cartable<-table(testS$r_nr,predtcart)
 
+#cross-validation
 
+set.seed(123)
+folds <- createFolds(tweetsSparse$r_nr, k = 10)
+
+ cv_results <- lapply(folds, function(x) {
+ russ_train <- tweetsSparse[-x, ]
+ russ_test <- tweetsSparse[x, ]
+ russ_model <- C5.0(r_nr ~ ., data = russ_train)
+ russ_pred <- predict(russ_model, russ_test)
+ russ_actual <- russ_test$r_nr
+ kappa <- kappa2(data.frame(russ_actual, russ_pred))$value
+ return(kappa)
+ })
+
+ mean(unlist(cv_results))
+ 
+```
+
+```{r}
 print(cartable)
 
 #Random Forest
@@ -275,7 +299,11 @@ rfroc<-prediction(as.numeric(predictForest),as.numeric(testS$r_nr))
 perf_3<- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
 plot(perf_3, colorize =T, main= "Random Forest")
 
+#cross-validation
+
+
 ```
+
 
 
 If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
