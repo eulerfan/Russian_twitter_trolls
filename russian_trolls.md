@@ -4,6 +4,7 @@ Russian Twitter Trolls
 Background
 ----------
 
+<<<<<<< HEAD
 After extensive government investigations, it was determined that Russia and Iran tried to influence the U.S. 2016 presidential elections through social media platforms. To work with the government in a constructive manner and keep its platform in a positive public light, Twitter made more than ten million foreign troll’s tweets available for research. A team at NBC News reconstructed a dataset of 200,000 Russian troll tweets and made it available on Kaggle. Their research showed these troll accounts were extremely active during key moments around the election. This project is attempting to determine which tweets are Russian troll tweets and which are not Russian troll tweets. It will be based on three predictive models, Naïve Bayes, Logistic Regression, and Random Forest. Then we will determine which predictive model is most effective when filtering the Russian troll tweets. This could be one of many possible filtering algorithms to help Twitter in identifying fake accounts of Russian or even Iranian trolls. There are two major reasons for Twitter to identify fake accounts:
 
 1.  Rebuilding public trust in their platform, and
@@ -21,11 +22,60 @@ To recreate a link to an individual tweet found in the dataset, replace user\_ke
 Following the links will lead to a suspended page on Twitter. But some copies of the tweets as they originally appeared, including images, can be found by entering the links on web caches like archive.org and archive.is.
 
 Acknowledgements If you publish using the data, please credit NBC News and include a link to this page. Send questions to <ben.popken@nbcuni.com>.
+=======
+After extensive government investigations, it was determined that Russia
+and Iran tried to influence the U.S. 2016 presidential elections through
+social media platforms. To work the government in a constructive manner
+and keep its platform in a positive public light, Twitter made more than
+ten million foreign troll’s tweets available for research. A team at NBC
+News reconstructed a dataset of 200,000 Russian troll tweets and made it
+available on Kaggle. Their research showed these troll accounts were
+extremely active during key moments around the election. This project is
+attempting to determine which tweets are Russian troll tweets and which
+are not Russian troll tweets. It will be based on three predictive
+models, Naïve Bayes, logistic regression, and random forest. Then we
+will determine which predictive model is most effective when filtering
+the Russian troll tweets. This could be one of many possible filtering
+algorithms to help Twitter in identifying fake accounts of Russian or
+even Iranian trolls. There are two major reasons for Twitter to identify
+fake accounts: rebuilding public trust in their platform, and influence
+in the government’s creation of legislation regulating social media.
+
+For more background, read the NBC news article publicizing the release:
+“Twitter deleted 200,000 Russian troll tweets.”[NBC Russian
+Tweets](https://www.nbcnews.com/tech/social-media/now-available-more-200-000-deleted-russian-troll-tweets-n844731)
+
+Content This dataset contains two CSV files. tweets.csv includes details
+on individual tweets from known Russain troll accounts,and
+noemoticon.csv file that is pre-russain trolls(2009).
+
+To recreate a link to an individual tweet found in the dataset, replace
+user\_key in <https://twitter.com/user_key/status/tweet_id> with the
+screen-name from the user\_key field and tweet\_id with the number in
+the tweet\_id field.
+
+Following the links will lead to a suspended page on Twitter. But some
+copies of the tweets as they originally appeared, including images, can
+be found by entering the links on web caches like archive.org and
+archive.is.
+
+Acknowledgements If you publish using the data, please credit NBC News
+and include a link to this page. Send questions to
+<ben.popken@nbcuni.com>.
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 
 This Project
 ------------
 
+<<<<<<< HEAD
 In this markdown document, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.
+=======
+In this mark down, the russian troll data set and a sentiment data set
+that was pre 2014 was used for analysis. The Russian troll accounts were
+from September 2014 until September 2017. So I found tweets that were
+produced from April to May 2009. Therefore, camparisons of troll and
+non-troll data could be made.
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 
 ``` r
 library(ROCR)
@@ -145,7 +195,8 @@ library(glm2)
 #save(nt,file= "savednt.RData")
 ```
 
-Because the CSV files were so large, two Rdata files were created. This helped with a shorter run time and committing to Github.
+Because the CSV files were so large, two Rdata files were created. This
+helped with a shorter run time and committing to Github.
 
 ``` r
 load("savednt.RData")
@@ -243,7 +294,8 @@ text_dtm <- DocumentTermMatrix(text_corpus_clean,control =
                                 list(wordLengths = c(0,Inf)))
 ```
 
-We separate the data into a training set and a test set. Then create the labels for the two sets.
+We separate the data into a training set and a test set. Then create the
+labels for the two sets.
 
 ``` r
 text_dtm_train<- text_dtm[1:10000,]
@@ -254,14 +306,16 @@ text_train_labels<- tot_tweets[1:10000,]$r_nr
 text_test_labels<- tot_tweets[10001:12000,]$r_nr
 ```
 
-We can now create three word clouds. The first wordcloud shows all of the data together. The second cloud show just the russian troll texts. The third is no Russian trolls at all.
+We can now create three word clouds. The first wordcloud shows all of
+the data together. The second cloud show just the russian troll texts.
+The third is no Russian trolls at all.
 
 ``` r
 #Overall word graph
 wordcloud(text_corpus_clean, min.freq = 100,scale=c(2,.5),random.order = FALSE)
 ```
 
-![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-1.png)
+![](russian_trolls_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
 #Russian troll graph
@@ -277,7 +331,7 @@ wordcloud(rus$text, max.words = 40,scale = c(3,.5))
     ## Warning in tm_map.SimpleCorpus(corpus, function(x) tm::removeWords(x,
     ## tm::stopwords())): transformation drops documents
 
-![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-2.png)
+![](russian_trolls_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
 
 ``` r
 #no russian trolls graph
@@ -286,11 +340,11 @@ wordcloud(norus$text, max.words = 40, scale = c(3,.5))
 
     ## Warning in tm_map.SimpleCorpus(corpus, tm::removePunctuation):
     ## transformation drops documents
-
+    
     ## Warning in tm_map.SimpleCorpus(corpus, tm::removePunctuation):
     ## transformation drops documents
 
-![](russian_trolls_files/figure-markdown_github/unnamed-chunk-5-3.png)
+![](russian_trolls_files/figure-gfm/unnamed-chunk-5-3.png)<!-- -->
 
 ``` r
 #number of frequent terms. frenquency filter of words used less than 20 times
@@ -299,7 +353,11 @@ tweet_freq_words <- findFreqTerms(text_dtm_train, 20)
  str(tweet_freq_words)
 ```
 
+<<<<<<< HEAD
     ##  chr [1:668] "â\200¦" "â\200\230" "â\200“" "abl" "accept" "account" ...
+=======
+    ##  chr [1:641] "â€¦" "â€˜" "â€“" "â€œ" "abl" "accept" "account" "accus" ...
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 
 ``` r
 #create DTM
@@ -345,6 +403,7 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
     ##              | actual 
     ##    predicted |         r |        nr | Row Total | 
     ## -------------|-----------|-----------|-----------|
+<<<<<<< HEAD
     ##            r |       909 |        25 |       934 | 
     ##              |     0.973 |     0.027 |     0.467 | 
     ##              |     0.896 |     0.025 |           | 
@@ -355,6 +414,18 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
     ## -------------|-----------|-----------|-----------|
     ## Column Total |      1014 |       986 |      2000 | 
     ##              |     0.507 |     0.493 |           | 
+=======
+    ##            r |       863 |        29 |       892 | 
+    ##              |     0.967 |     0.033 |     0.446 | 
+    ##              |     0.893 |     0.028 |           | 
+    ## -------------|-----------|-----------|-----------|
+    ##           nr |       103 |      1005 |      1108 | 
+    ##              |     0.093 |     0.907 |     0.554 | 
+    ##              |     0.107 |     0.972 |           | 
+    ## -------------|-----------|-----------|-----------|
+    ## Column Total |       966 |      1034 |      2000 | 
+    ##              |     0.483 |     0.517 |           | 
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
     ## -------------|-----------|-----------|-----------|
     ## 
     ## 
@@ -374,7 +445,7 @@ perf_r<- performance(predt, measure ='tpr',x.measure='fpr')
 plot(perf_r,colorize=T,main="Naive Bayes")
 ```
 
-![](russian_trolls_files/figure-markdown_github/unnamed-chunk-8-1.png)
+![](russian_trolls_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
 print(auc)
@@ -395,7 +466,11 @@ print(auc)
     ## 
     ## Slot "y.values":
     ## [[1]]
+<<<<<<< HEAD
     ## [1] 0.9756177
+=======
+    ## [1] 0.9774539
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
     ## 
     ## 
     ## Slot "alpha.values":
@@ -499,8 +574,13 @@ cmatrix_logregr
 
     ##     
     ##      FALSE TRUE
+<<<<<<< HEAD
     ##   r   1325  205
     ##   nr    29 1441
+=======
+    ##   r   1276  189
+    ##   nr    37 1498
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 
 ``` r
 tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
@@ -511,8 +591,13 @@ cmatrix1
 
     ##     
     ##      FALSE TRUE
+<<<<<<< HEAD
     ##   r   3883  587
     ##   nr    69 4460
+=======
+    ##   r   3928  606
+    ##   nr    67 4398
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 
 ``` r
 #create ROC for Logistic Regression
@@ -522,7 +607,7 @@ troc2<-roc(testS$r_nr~tweet.logit.test)
 plot(troc2)
 ```
 
-![](russian_trolls_files/figure-markdown_github/unnamed-chunk-9-1.png)
+![](russian_trolls_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 #calculate the area under the ROC
@@ -532,30 +617,87 @@ auc2<-auc(troc2)
 print(auc2)
 ```
 
+<<<<<<< HEAD
     ## Area under the curve: 0.9708
+=======
+    ## Area under the curve: 0.969
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 
 ``` r
 #Descision Tree
 library(rpart)
 library(rpart.plot)
+<<<<<<< HEAD
+=======
+```
+
+    ## Warning: package 'rpart.plot' was built under R version 3.4.4
+
+``` r
+library(e1071)
+library(irr)
+```
+
+    ## Warning: package 'irr' was built under R version 3.4.4
+
+    ## Loading required package: lpSolve
+
+    ## Warning: package 'lpSolve' was built under R version 3.4.4
+
+``` r
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 tweetcart<- rpart(r_nr~.,data = trainSparse, method = "class")
 prp(tweetcart)
 ```
 
-![](russian_trolls_files/figure-markdown_github/unnamed-chunk-10-1.png)
+![](russian_trolls_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 ``` r
 predtcart<-predict(tweetcart,newdata=testS,type = "class")
 cartable<-table(testS$r_nr,predtcart)
 
+#cross-validation
 
+tr.control<- trainControl(method="cv",number=5)
+cp.grid<-expand.grid(.cp= (0:5)*0.001)
+tr<-train(r_nr~.,data = tweetsSparse, method="rpart", trControl=tr.control,tuneGrid=cp.grid, na.action = na.omit )
+
+best.tree<-tr$finalModel
+prp(best.tree)
+```
+
+![](russian_trolls_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
+
+``` r
+#set.seed(123)
+#folds <- createFolds(tweetsSparse$r_nr, k = 5)
+
+# cv_results <- lapply(folds, function(x) {
+# russ_train <- tweetsSparse[-x, ]
+ #russ_test <- tweetsSparse[x, ]
+# russ_model <- C5.0(r_nr ~ ., data = russ_train)
+ #russ_pred <- predict(tweetcart, russ_test)
+ #russ_actual <- russ_test$r_nr
+ #kappa <- kappam.light(data.frame(russ_actual, russ_pred))$value
+ #return(kappa)
+ #})
+
+ #mean(unlist(cv_results))
+```
+
+``` r
 print(cartable)
 ```
 
     ##     predtcart
     ##         r   nr
+<<<<<<< HEAD
     ##   r  1210  320
     ##   nr    3 1467
+=======
+    ##   r  1176  289
+    ##   nr    5 1530
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 
 ``` r
 #Random Forest
@@ -588,8 +730,13 @@ table(testS$r_nr,predictForest)
 
     ##     predictForest
     ##         r   nr
+<<<<<<< HEAD
     ##   r  1317  213
     ##   nr   40 1430
+=======
+    ##   r  1284  181
+    ##   nr   45 1490
+>>>>>>> 08758089419c336b77f57380fd8a57fa1fe6eb28
 
 ``` r
 #random forest ROC
@@ -598,8 +745,10 @@ perf_3<- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
 plot(perf_3, colorize =T, main= "Random Forest")
 ```
 
-![](russian_trolls_files/figure-markdown_github/unnamed-chunk-10-2.png)
+![](russian_trolls_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
-If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
+If any of the three terms rt,trump, or clinton showed themselves in the
+Russian troll accounts.
 
-Overall Naive Bayes return the most promising results for filtering tweets against a wide range of tweets.
+Overall Naive Bayes return the most promising results for filtering
+tweets against a wide range of tweets.
