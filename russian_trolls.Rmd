@@ -2,7 +2,9 @@
 title: "Russian Twitter Trolls"
 output: github_document
 ---
-
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 Context
 
@@ -39,6 +41,7 @@ library(wordcloud)
 library(tidyr)
 library(tm) # text data
 library(effects) # regession models
+library(glm2)
 
 #nt<-read.csv("C:/Users/John/Documents/R/russian_trolls/training.1600000.processed.noemoticon.csv")
 #rt <-read.csv("file:///C:/Users/John/Documents/R/russian_trolls/tweets.csv/tweets.csv")
@@ -203,6 +206,7 @@ library(caret)
 library(safeBinaryRegression)
 library(glmnet)
 library(Matrix)
+library(pROC)
  #logistic Regression
 
 sparse_dtm<-removeSparseTerms(text_dtm, 0.995) #terms appear in more than .5% of tweets or 230 
@@ -217,11 +221,8 @@ tweetsSparse$r_nr<-tot_tweets$r_nr
 trainSparse<- tweetsSparse[1:9000,]
 testS<- tweetsSparse[9001:12000,]
 
-#y<-trainSparse[1:8999,"r_nr"]
-#x<-as.matrix(r_nr~.,data=trainSparse)
-#tweet.logit <-glmnet(x,y, family = "binomial")
-
-tweet.logit<- glm(r_nr~.,trainSparse, family = "binomial")
+#logistic regression model
+tweet.logit<- glm2(r_nr~.,trainSparse, family = "binomial")
 
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
 
@@ -236,14 +237,13 @@ cmatrix1 <-table(trainSparse$r_nr,tweet.logit.test1>0.5)
 cmatrix1
 
 #create ROC for Logistic Regression
-testSparse$r_nr<-factor(testS$r_nr,levels =c(0,1))
-troc2<-prediction(tweet.logit.test,testS$r_nr)
 
-perf_r2<- performance(troc2, measure ='tpr',x.measure='fpr')
-plot(perf_r2,colorize=T, main="Logistic Regression")
+troc2<-roc(testS$r_nr~tweet.logit.test)
+
+plot(troc2)
 
 #calculate the area under the ROC
-auc2<-performance(troc2,measure = "auc")
+auc2<-auc(troc2)
 
 
 print(auc2)
