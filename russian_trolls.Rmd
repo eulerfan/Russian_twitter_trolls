@@ -59,8 +59,7 @@ library(glm2)
 
 ```
 
-Because the CSV files were so large, two Rdata files were created. This helped with a shorter run time and committing to Github.
-
+Because the CSV files were so large, two Rdata files were created. This helped with shorter run time and smaller upload to Github. The text column was extracted from both data sets, then add labels. The Russian troll text labeled r, the text with no Russian trolls was labeled nr. The column heading is r_nr. 
 ```{r}
 
 load("savednt.RData")
@@ -89,7 +88,7 @@ str(rt)
 str(nt)
 ```
 
-The output is two data frames: rtext and ntext. each with 6k tweets and each are labeled
+With the new data set, a corpus is created and gets cleaned by removing numbers, stopwords, white space, and punctuations.  We also need to make all words lower case and stem the words.   
 
 ```{r}
 
@@ -154,7 +153,11 @@ wordcloud(rus$text, max.words = 40,scale = c(3,.5))
 wordcloud(norus$text, max.words = 40, scale = c(3,.5))
 ```
 
-```{r}
+Now we decide the frequency of the words that will be changed into a matrix. A  document-term matrix is created so we can analyze the text.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+ 
 #number of frequent terms. frenquency filter of words used less than 20 times
 tweet_freq_words <- findFreqTerms(text_dtm_train, 20)
  
@@ -176,11 +179,8 @@ tweet_test <- apply(tweet_dtm_freq_test, MARGIN = 2,
  convert_counts)
   
 tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
-```
 
-```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
- tweet_test_pred <- predict(tweet_classifier, tweet_test)
-
+tweet_test_pred <- predict(tweet_classifier, tweet_test)
 
  CrossTable(tweet_test_pred, text_test_labels,
  prop.chisq = FALSE, prop.t = FALSE,
@@ -188,6 +188,10 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
 
  
 ```
+
+This the NaIve Bayes model, and from the cross table, we can see that we have an accuracy of 93%. 
+
+
 ```{r}
 
 #create ROC for Naive Bayes
@@ -215,9 +219,11 @@ library(safeBinaryRegression)
 library(glmnet)
 library(Matrix)
 library(pROC)
+library(ROSE)
+
  #logistic Regression
 
-sparse_dtm<-removeSparseTerms(text_dtm, 0.995) #terms appear in more than .5% of tweets or 230 
+sparse_dtm<-removeSparseTerms(text_dtm, 0.995) #terms appear in more than .05% of tweets or 230 terms 
 
 #new Data frame
 tweetsSparse<-as.data.frame(as.matrix(sparse_dtm))
@@ -232,34 +238,22 @@ testS<- tweetsSparse[9001:12000,]
 #logistic regression model
 tweet.logit<- glm2(r_nr~.,trainSparse, family = "binomial")
 
-
-
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
-
 
 cmatrix_logregr<-table(testS$r_nr, tweet.logit.test>0.5)
 
 cmatrix_logregr
 
-tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
-cmatrix1 <-table(trainSparse$r_nr,tweet.logit.test1>0.5)
 
-cmatrix1
+#create ROC and auc for Logistic Regression
 
-#create ROC for Logistic Regression
-
-troc2<-roc(testS$r_nr~tweet.logit.test)
-
-plot(troc2)
-
-#calculate the area under the ROC
-auc2<-auc(troc2)
-
-
-print(auc2)
+logRe<-roc.curve(testS$r_nr,tweet.logit.test,main="Logistic Regression")
+logRe
 
 
 ```
+To create a Logistic Regression model, we removed the sparse terms of greater than 99.995%.  We split the new data and run the model to get accuracy 92%. 
+
 ```{r}
 #Descision Tree
 library(rpart)
@@ -270,37 +264,24 @@ library(irr)
 tweetcart<- rpart(r_nr~.,data = trainSparse, method = "class")
 prp(tweetcart)
 
-predtcart<-predict(tweetcart,newdata=testS,type = "class")
+predtcart<-predict(tweetcart,newdata=testS,type = "class",na.action = na.omit)
 cartable<-table(testS$r_nr,predtcart)
+
+print(cartable)
 
 #cross-validation
 
-tr.control<- trainControl(method="cv",number=5)
+tr.control<- trainControl(method="cv",number=5,classProbs = TRUE,
+                          summaryFunction = twoClassSummary) 
 cp.grid<-expand.grid(.cp= (0:5)*0.001)
-tr<-train(r_nr~.,data = tweetsSparse, method="rpart", trControl=tr.control,tuneGrid=cp.grid, na.action = na.omit )
+tr<-train(r_nr~.,data = tweetsSparse, method="rpart", trControl=tr.control,tuneGrid=cp.grid, na.action = na.omit,
+          metric="ROC" )
+tr
 
-best.tree<-tr$finalModel
-prp(best.tree)
-
-#set.seed(123)
-#folds <- createFolds(tweetsSparse$r_nr, k = 5)
-
-# cv_results <- lapply(folds, function(x) {
-# russ_train <- tweetsSparse[-x, ]
- #russ_test <- tweetsSparse[x, ]
-# russ_model <- C5.0(r_nr ~ ., data = russ_train)
- #russ_pred <- predict(tweetcart, russ_test)
- #russ_actual <- russ_test$r_nr
- #kappa <- kappam.light(data.frame(russ_actual, russ_pred))$value
- #return(kappa)
- #})
-
- #mean(unlist(cv_results))
- 
 ```
+The Decision Tree model on a binary classifier is just one branch that would eventually change directions. It uses the same sparse data as Logisitc Regression, which will also be used for Random Forest.Then I used cross-validation to perform an even better check of the data on the model. In the end, the cp of 0.00  was the best fit with an accuracy of 91%.
 
 ```{r}
-print(cartable)
 
 #Random Forest
 library(randomForest)
@@ -314,12 +295,11 @@ rfroc <- prediction(as.numeric(predictForest),as.numeric(testS$r_nr))
 perf_3 <- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
 plot(perf_3, colorize = T, main = "Random Forest")
 
+auc3<-performance(rfroc,"auc")
 
 
 ```
+The last model is Random Forest, which is several descion trees, had an accuracy of 92%.
 
-
-
-If any of the three terms rt,trump, or clinton showed themselves in the Russian troll accounts.
-
-Overall Naive Bayes return the most promising results for filtering tweets against a wide range of tweets. 
+When we compare all of these models for accuracy and auc, we find that the Naive Bayes is the most accurate. It's ROC/auc shows that this model would perform better than the other three models to filter a tweet, and recognize a possible account controlled by Russians. Models based on two-word and three-word combinations could improve accuracy.  Geospatial addresses could improve these models, but that would infringe on personal privacy.  
+As time goes on the trolls will get better and better at masking their efforts to meddle in elections across the world.  This will be an ongoing effort for Twiter and other social media outlets to create more models with more accuracy.  
