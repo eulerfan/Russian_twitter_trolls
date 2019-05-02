@@ -296,7 +296,7 @@ perf_3 <- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
 plot(perf_3, colorize = T, main = "Random Forest")
 
 auc3<-performance(rfroc,"auc")
-
+print(auc3)
 
 ```
 The last model is Random Forest, which is several descion trees, had an accuracy of 92%.

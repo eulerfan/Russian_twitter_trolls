@@ -183,7 +183,10 @@ library(glm2)
 ```
 
 Because the CSV files were so large, two Rdata files were created. This
-helped with a shorter run time and committing to Github.
+helped with shorter run time and smaller upload to Github. The text
+column was extracted from both data sets, then add labels. The Russian
+troll text labeled r, the text with no Russian trolls was labeled nr.
+The column heading is r\_nr.
 
 ``` r
 load("savednt.RData")
@@ -241,8 +244,9 @@ str(nt)
     ##  $ X_TheSpecialOne_: Factor w/ 659775 levels "____________g",..: 313608 618339 408127 620180 375781 471444 375480 180113 264013 641922 ...
     ##  $ text            : Factor w/ 1581465 levels "\177in the process of getting jaunty- ubuntu 9.04 disk is finally getting a workout ",..: 709235 1569856 1415969 7437 315876 623064 1419923 1348303 1374126 96507 ...
 
-The output is two data frames: rtext and ntext. each with 6k tweets and
-each are labeled
+With the new data set, a corpus is created and gets cleaned by removing
+numbers, stopwords, white space, and punctuations. We also need to make
+all words lower case and stem the words.
 
 ``` r
 #combining data sets, sample function randomizes order of rows
@@ -334,6 +338,10 @@ wordcloud(norus$text, max.words = 40, scale = c(3,.5))
 
 ![](russian_trolls_files/figure-gfm/unnamed-chunk-5-3.png)<!-- -->
 
+Now we decide the frequency of the words that will be changed into a
+matrix. A document-term matrix is created so we can analyze the
+text.
+
 ``` r
 #number of frequent terms. frenquency filter of words used less than 20 times
 tweet_freq_words <- findFreqTerms(text_dtm_train, 20)
@@ -341,7 +349,7 @@ tweet_freq_words <- findFreqTerms(text_dtm_train, 20)
  str(tweet_freq_words)
 ```
 
-    ##  chr [1:650] "â€¦" "â€˜" "â€“" "â€œ" "abl" "accept" "account" "accus" ...
+    ##  chr [1:660] "â€¦" "â€˜" "â€“" "â€œ" "abl" "accept" "account" "accus" ...
 
 ``` r
 #create DTM
@@ -360,11 +368,8 @@ tweet_test <- apply(tweet_dtm_freq_test, MARGIN = 2,
  convert_counts)
   
 tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
-```
 
-``` r
- tweet_test_pred <- predict(tweet_classifier, tweet_test)
-
+tweet_test_pred <- predict(tweet_classifier, tweet_test)
 
  CrossTable(tweet_test_pred, text_test_labels,
  prop.chisq = FALSE, prop.t = FALSE,
@@ -387,19 +392,22 @@ tweet_classifier<- naiveBayes(tweet_train,text_train_labels)
     ##              | actual 
     ##    predicted |         r |        nr | Row Total | 
     ## -------------|-----------|-----------|-----------|
-    ##            r |       868 |        26 |       894 | 
-    ##              |     0.971 |     0.029 |     0.447 | 
-    ##              |     0.892 |     0.025 |           | 
+    ##            r |       863 |        23 |       886 | 
+    ##              |     0.974 |     0.026 |     0.443 | 
+    ##              |     0.858 |     0.023 |           | 
     ## -------------|-----------|-----------|-----------|
-    ##           nr |       105 |      1001 |      1106 | 
-    ##              |     0.095 |     0.905 |     0.553 | 
-    ##              |     0.108 |     0.975 |           | 
+    ##           nr |       143 |       971 |      1114 | 
+    ##              |     0.128 |     0.872 |     0.557 | 
+    ##              |     0.142 |     0.977 |           | 
     ## -------------|-----------|-----------|-----------|
-    ## Column Total |       973 |      1027 |      2000 | 
-    ##              |     0.486 |     0.513 |           | 
+    ## Column Total |      1006 |       994 |      2000 | 
+    ##              |     0.503 |     0.497 |           | 
     ## -------------|-----------|-----------|-----------|
     ## 
     ## 
+
+This the NaIve Bayes model, and from the cross table, we can see that we
+have an accuracy of 93%.
 
 ``` r
 #create ROC for Naive Bayes
@@ -416,7 +424,7 @@ perf_r<- performance(predt, measure ='tpr',x.measure='fpr')
 plot(perf_r,colorize=T,main="Naive Bayes")
 ```
 
-![](russian_trolls_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](russian_trolls_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
 print(auc)
@@ -437,7 +445,7 @@ print(auc)
     ## 
     ## Slot "y.values":
     ## [[1]]
-    ## [1] 0.9744744
+    ## [1] 0.9735895
     ## 
     ## 
     ## Slot "alpha.values":
@@ -514,9 +522,17 @@ library(pROC)
     ##     cov, smooth, var
 
 ``` r
+library(ROSE)
+```
+
+    ## Warning: package 'ROSE' was built under R version 3.4.4
+
+    ## Loaded ROSE 0.0-3
+
+``` r
  #logistic Regression
 
-sparse_dtm<-removeSparseTerms(text_dtm, 0.995) #terms appear in more than .5% of tweets or 230 
+sparse_dtm<-removeSparseTerms(text_dtm, 0.995) #terms appear in more than .05% of tweets or 230 terms 
 
 #new Data frame
 tweetsSparse<-as.data.frame(as.matrix(sparse_dtm))
@@ -537,7 +553,6 @@ tweet.logit<- glm2(r_nr~.,trainSparse, family = "binomial")
 ``` r
 tweet.logit.test<-predict(tweet.logit,type = "response", newdata = testS,na.action=na.exclude)
 
-
 cmatrix_logregr<-table(testS$r_nr, tweet.logit.test>0.5)
 
 cmatrix_logregr
@@ -545,39 +560,26 @@ cmatrix_logregr
 
     ##     
     ##      FALSE TRUE
-    ##   r   1280  196
-    ##   nr    40 1484
+    ##   r   1294  240
+    ##   nr    34 1432
 
 ``` r
-tweet.logit.test1<-predict(tweet.logit, type = "response", newdata = trainSparse)
-cmatrix1 <-table(trainSparse$r_nr,tweet.logit.test1>0.5)
+#create ROC and auc for Logistic Regression
 
-cmatrix1
+logRe<-roc.curve(testS$r_nr,tweet.logit.test,main="Logistic Regression")
 ```
 
-    ##     
-    ##      FALSE TRUE
-    ##   r   3939  585
-    ##   nr    72 4403
+![](russian_trolls_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
-#create ROC for Logistic Regression
-
-troc2<-roc(testS$r_nr~tweet.logit.test)
-
-plot(troc2)
+logRe
 ```
 
-![](russian_trolls_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+    ## Area under the curve (AUC): 0.962
 
-``` r
-#calculate the area under the ROC
-auc2<-auc(troc2)
-
-print(auc2)
-```
-
-    ## Area under the curve: 0.9687
+To create a Logistic Regression model, we removed the sparse terms of
+greater than 99.995%. We split the new data and run the model to get
+accuracy 92%.
 
 ``` r
 #Descision Tree
@@ -608,7 +610,7 @@ tweetcart<- rpart(r_nr~.,data = trainSparse, method = "class")
 prp(tweetcart)
 ```
 
-![](russian_trolls_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](russian_trolls_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 predtcart<-predict(tweetcart,newdata=testS,type = "class",na.action = na.omit)
@@ -619,8 +621,8 @@ print(cartable)
 
     ##     predtcart
     ##         r   nr
-    ##   r  1188  288
-    ##   nr    2 1522
+    ##   r  1189  345
+    ##   nr    2 1464
 
 ``` r
 #cross-validation
@@ -645,15 +647,22 @@ tr
     ## Resampling results across tuning parameters:
     ## 
     ##   cp     ROC        Sens       Spec     
-    ##   0.000  0.9415684  0.8403333  0.9888333
-    ##   0.001  0.9155551  0.8335000  0.9953333
-    ##   0.002  0.9133069  0.8285000  0.9966667
-    ##   0.003  0.9107199  0.8230000  0.9970000
-    ##   0.004  0.9065534  0.8145000  0.9978333
-    ##   0.005  0.9065683  0.8145000  0.9980000
+    ##   0.000  0.9398452  0.8393333  0.9915000
+    ##   0.001  0.9149094  0.8321667  0.9941667
+    ##   0.002  0.9130879  0.8281667  0.9961667
+    ##   0.003  0.9096953  0.8213333  0.9965000
+    ##   0.004  0.9067578  0.8150000  0.9975000
+    ##   0.005  0.9065628  0.8145000  0.9980000
     ## 
     ## ROC was used to select the optimal model using the largest value.
     ## The final value used for the model was cp = 0.
+
+The Decision Tree model on a binary classifier is just one branch that
+would eventually change directions. It uses the same sparse data as
+Logisitc Regression, which will also be used for Random Forest.Then I
+used cross-validation to perform an even better check of the data on the
+model. In the end, the cp of 0.00 was the best fit with an accuracy of
+91%.
 
 ``` r
 #Random Forest
@@ -686,8 +695,8 @@ table(testS$r_nr,predictForest)
 
     ##     predictForest
     ##         r   nr
-    ##   r  1275  201
-    ##   nr   42 1482
+    ##   r  1295  239
+    ##   nr   28 1438
 
 ``` r
 #random forest ROC
@@ -696,12 +705,10 @@ perf_3 <- performance(rfroc,measure = 'tpr',x.measure = 'fpr')
 plot(perf_3, colorize = T, main = "Random Forest")
 ```
 
-![](russian_trolls_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](russian_trolls_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 ``` r
 auc3<-performance(rfroc,"auc")
-
-
 print(auc3)
 ```
 
@@ -720,14 +727,23 @@ print(auc3)
     ## 
     ## Slot "y.values":
     ## [[1]]
-    ## [1] 0.918131
+    ## [1] 0.9125493
     ## 
     ## 
     ## Slot "alpha.values":
     ## list()
 
-If any of the three terms rt,trump, or clinton showed themselves in the
-Russian troll accounts.
+The last model is Random Forest, which is several descion trees, had an
+accuracy of 92%.
 
-Overall Naive Bayes return the most promising results for filtering
-tweets against a wide range of tweets.
+When we compare all of these models for accuracy and auc, we find that
+the Naive Bayes is the most accurate. It’s ROC/auc shows that this model
+would perform better than the other three models to filter a tweet, and
+recognize a possible account controlled by Russians. Models based on
+two-word and three-word combinations could improve accuracy. Geospatial
+addresses could improve these models, but that would infringe on
+personal privacy.  
+As time goes on the trolls will get better and better at masking their
+efforts to meddle in elections across the world. This will be an ongoing
+effort for Twiter and other social media outlets to create more models
+with more accuracy.
