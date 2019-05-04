@@ -90,11 +90,11 @@ str(nt)
 
 With the new data set, a corpus is created and gets cleaned by removing numbers, stopwords, white space, and punctuations.  We also need to make all words lower case and stem the words.   
 
-```{r, Text Tokenizing}
+```{r Text Tokenizing}
 
 #combining data sets, sample function randomizes order of rows
 
-tot_tweets <- rbind(ntext,rtext,stringAsfactors = FALSE)
+tot_tweets <- rbind(ntext,rtext,stringsAsFactors = FALSE) 
 tot_tweets <- tot_tweets[sample(nrow(tot_tweets)),]
 
 #change character to factor
