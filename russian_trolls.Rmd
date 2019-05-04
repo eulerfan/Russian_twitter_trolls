@@ -30,7 +30,7 @@ If you publish using the data, please credit NBC News and include a link to this
 
 In this markdown document, the russian troll data set and a sentiment data set that was pre 2014 was used for analysis. The Russian troll accounts were from September 2014 until September 2017. So I found tweets that were produced from April to May 2009. Therefore, camparisons of troll and non-troll data could be made.    
 
-```{r}
+```{r, echo=FALSE}
 library(ROCR)
 library(caTools)# ROC, AUC
 library(e1071) #  Naive Bayes 
