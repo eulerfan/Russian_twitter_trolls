@@ -59,7 +59,7 @@ library(glm2)
 
 ```
 
-Because the CSV files were so large, two Rdata files were created. This helped with shorter run time and smaller upload to Github. The text column was extracted from both data sets, then add labels. The Russian troll text labeled r, the text with no Russian trolls was labeled nr. The column heading is r_nr. 
+Because the CSV files were so large, two Rdata files were created. This helped with shorter run time and smaller upload to Github. The text column was extracted from both data sets, then labels were added. The Russian troll text labeled r, the text with no Russian trolls was labeled nr. The column heading is r_nr. 
 ```{r}
 
 load("savednt.RData")
@@ -90,7 +90,7 @@ str(nt)
 
 With the new data set, a corpus is created and gets cleaned by removing numbers, stopwords, white space, and punctuations.  We also need to make all words lower case and stem the words.   
 
-```{r}
+```{r, Text Tokenizing}
 
 #combining data sets, sample function randomizes order of rows
 
@@ -120,7 +120,7 @@ text_corpus_clean <- tm_map(text_corpus_clean,stripWhitespace)
 
 #Tokenize the data
 text_dtm <- DocumentTermMatrix(text_corpus_clean,control =
-                                list(wordLengths = c(0,Inf)))
+                                list(wordLengths = c(1,Inf))) 
 
 
 ```
